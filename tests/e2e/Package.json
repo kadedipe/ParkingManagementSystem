@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "test:e2e": "node tests/e2e/run-tests.js",
+    "test:e2e:ios": "detox test -c ios.sim.debug --config tests/e2e/detox.config.js",
+    "test:e2e:android": "detox test -c android.emu.debug --config tests/e2e/detox.config.js",
+    "test:e2e:ci": "jest --config=tests/e2e/jest.config.js --ci --runInBand",
+    "test:e2e:watch": "jest --config=tests/e2e/jest.config.js --watch",
+    "test:e2e:coverage": "jest --config=tests/e2e/jest.config.js --coverage",
+    "start:test": "NODE_ENV=test PORT=3001 node dist/main.js"
+  }
+}

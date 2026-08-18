@@ -1,0 +1,39 @@
+# ============================================================================
+# Docker Compose - E2E Test Environment
+# ============================================================================
+
+# parking-management-system/tests/e2e/docker-compose.e2e.yml
+
+version: '3.8'
+
+services:
+  postgres-e2e:
+    image: postgres:15-alpine
+    container_name: parking-postgres-e2e
+    environment:
+      - POSTGRES_DB=parking_e2e_db
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-e2e-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d parking_e2e_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-e2e:
+    image: redis:7-alpine
+    container_name: parking-redis-e2e
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-e2e-data:
