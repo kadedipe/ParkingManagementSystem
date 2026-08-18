@@ -1,0 +1,74 @@
+# ============================================================================
+# Docker Compose - Load Test Environment
+# ============================================================================
+
+# parking-management-system/tests/load/docker-compose.load.yml
+
+version: '3.8'
+
+services:
+  k6:
+    image: grafana/k6:latest
+    container_name: parking-k6
+    environment:
+      - BASE_URL=http://backend:3000
+    volumes:
+      - ./k6-script.js:/scripts/k6-script.js
+      - ./k6-config.json:/scripts/k6-config.json
+      - ./results:/results
+    command: run /scripts/k6-script.js --config /scripts/k6-config.json --out json=/results/load-test-results.json
+    depends_on:
+      - backend
+    networks:
+      - parking-load-network
+
+  backend:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.backend
+    container_name: parking-backend-load
+    environment:
+      - NODE_ENV=test
+      - DB_HOST=postgres-load
+      - DB_PORT=5432
+      - DB_NAME=parking_load_db
+      - DB_USER=test_user
+      - DB_PASSWORD=test_password
+      - REDIS_HOST=redis-load
+      - REDIS_PORT=6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres-load
+      - redis-load
+    networks:
+      - parking-load-network
+
+  postgres-load:
+    image: postgres:15-alpine
+    container_name: postgres-load
+    environment:
+      - POSTGRES_DB=parking_load_db
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+    volumes:
+      - postgres-load-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - parking-load-network
+
+  redis-load:
+    image: redis:7-alpine
+    container_name: redis-load
+    ports:
+      - "6380:6379"
+    networks:
+      - parking-load-network
+
+volumes:
+  postgres-load-data:
+
+networks:
+  parking-load-network:
+    driver: bridge

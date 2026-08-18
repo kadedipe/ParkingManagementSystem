@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "test:integration": "jest --config=tests/integration/jest.config.js",
+    "test:integration:watch": "jest --config=tests/integration/jest.config.js --watch",
+    "test:integration:coverage": "jest --config=tests/integration/jest.config.js --coverage",
+    "test:integration:debug": "node --inspect-brk node_modules/.bin/jest --config=tests/integration/jest.config.js --runInBand",
+    "test:integration:ci": "jest --config=tests/integration/jest.config.js --ci --coverage --maxWorkers=2"
+  }
+}

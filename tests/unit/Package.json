@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "test:unit": "jest --testMatch='**/tests/unit/**/*.test.ts'",
+    "test:integration": "jest --testMatch='**/tests/integration/**/*.test.ts'",
+    "test:e2e": "jest --testMatch='**/tests/e2e/**/*.test.ts'",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "test:update": "jest --updateSnapshot"
+  }
+}

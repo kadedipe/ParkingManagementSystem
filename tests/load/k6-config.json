@@ -1,0 +1,66 @@
+// ============================================================================
+// K6 Configuration - Load Test Options
+// ============================================================================
+
+// parking-management-system/tests/load/k6-config.json
+
+{
+  "stages": [
+    {
+      "duration": "2m",
+      "target": 20,
+      "description": "Ramp up to 20 users"
+    },
+    {
+      "duration": "5m",
+      "target": 20,
+      "description": "Stay at 20 users"
+    },
+    {
+      "duration": "2m",
+      "target": 50,
+      "description": "Ramp up to 50 users"
+    },
+    {
+      "duration": "5m",
+      "target": 50,
+      "description": "Stay at 50 users"
+    },
+    {
+      "duration": "2m",
+      "target": 0,
+      "description": "Ramp down to 0 users"
+    }
+  ],
+  "thresholds": {
+    "http_req_duration": [
+      "p(95)<500",
+      "p(99)<1000"
+    ],
+    "http_req_failed": [
+      "rate<0.01"
+    ],
+    "errors": [
+      "rate<0.1"
+    ]
+  },
+  "scenarios": {
+    "default": {
+      "executor": "ramping-vus",
+      "startVUs": 0,
+      "stages": [
+        { "duration": "2m", "target": 20 },
+        { "duration": "5m", "target": 20 },
+        { "duration": "2m", "target": 50 },
+        { "duration": "5m", "target": 50 },
+        { "duration": "2m", "target": 0 }
+      ],
+      "gracefulRampDown": "30s"
+    }
+  },
+  "discardResponseBodies": false,
+  "summaryTrendStats": ["avg", "min", "max", "p(95)", "p(99)"],
+  "noColor": false,
+  "quiet": false,
+  "includeSystemEnvVars": true
+}

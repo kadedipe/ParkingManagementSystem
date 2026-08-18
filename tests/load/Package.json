@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "test:load": "node tests/load/run.js",
+    "test:load:smoke": "node tests/load/run.js smoke",
+    "test:load:load": "node tests/load/run.js load",
+    "test:load:stress": "node tests/load/run.js stress",
+    "test:load:spike": "node tests/load/run.js spike",
+    "test:load:soak": "node tests/load/run.js soak",
+    "test:load:breakpoint": "node tests/load/run.js breakpoint",
+    "test:load:all": "node tests/load/run.js all",
+    "test:load:report": "python3 tests/load/generate-report.py results/load-test-results.json results/load-test-report.html"
+  }
+}
