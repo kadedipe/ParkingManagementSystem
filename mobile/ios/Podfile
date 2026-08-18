@@ -1,0 +1,257 @@
+# ============================================================================
+# Podfile for Parking System iOS App
+# ============================================================================
+
+# This Podfile manages CocoaPods dependencies for the iOS app.
+# It includes React Native, Firebase, Google Maps, and other third-party libraries.
+
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+
+# Platform version
+platform :ios, '13.0'
+
+# ============================================================================
+# Global Settings
+# ============================================================================
+
+# Set to true if using Flipper
+$RNFlipperEnabled = false
+
+# Set to true if using Hermes
+$RNHermesEnabled = true
+
+# Set to true if using New Architecture
+$RNFabricEnabled = false
+
+# Set to true if using TurboModules
+$RNTurboModulesEnabled = false
+
+# ============================================================================
+# Pod Installation
+# ============================================================================
+
+# Install React Native
+use_react_native!(
+  :path => config[:reactNativePath],
+  :hermes_enabled => $RNHermesEnabled,
+  :fabric_enabled => $RNFabricEnabled,
+  :flipper_configuration => FlipperConfiguration.enabled,
+  # An absolute path to your application root.
+  :app_path => "#{Pod::Config.instance.installation_root}/.."
+)
+
+# ============================================================================
+# Target Configuration
+# ============================================================================
+
+target 'ParkingSystem' do
+  config = use_native_modules!
+
+  # ==========================================================================
+  # React Native Dependencies
+  # ==========================================================================
+
+  # React Native Config
+  pod 'react-native-config', :path => '../node_modules/react-native-config'
+
+  # React Native Async Storage
+  pod 'RNCAsyncStorage', :path => '../node_modules/@react-native-async-storage/async-storage'
+
+  # React Native NetInfo
+  pod 'react-native-netinfo', :path => '../node_modules/@react-native-community/netinfo'
+
+  # React Native Geolocation
+  pod 'react-native-geolocation', :path => '../node_modules/@react-native-community/geolocation'
+
+  # React Native Push Notification iOS
+  pod 'RNCPushNotificationIOS', :path => '../node_modules/@react-native-community/push-notification-ios'
+
+  # React Native Device Info
+  pod 'react-native-device-info', :path => '../node_modules/react-native-device-info'
+
+  # React Native Permissions
+  pod 'react-native-permissions', :path => '../node_modules/react-native-permissions'
+
+  # React Native Keychain
+  pod 'react-native-keychain', :path => '../node_modules/react-native-keychain'
+
+  # React Native Biometrics
+  pod 'react-native-biometrics', :path => '../node_modules/react-native-biometrics'
+
+  # React Native Document Picker
+  pod 'react-native-document-picker', :path => '../node_modules/react-native-document-picker'
+
+  # React Native QR Code Scanner
+  pod 'react-native-qrcode-scanner', :path => '../node_modules/react-native-qrcode-scanner'
+
+  # React Native Camera
+  pod 'react-native-camera', :path => '../node_modules/react-native-camera'
+
+  # React Native Maps
+  pod 'react-native-maps', :path => '../node_modules/react-native-maps'
+
+  # React Native Vector Icons
+  pod 'react-native-vector-icons', :path => '../node_modules/react-native-vector-icons'
+
+  # React Native Gesture Handler
+  pod 'RNGestureHandler', :path => '../node_modules/react-native-gesture-handler'
+
+  # React Native Reanimated
+  pod 'RNReanimated', :path => '../node_modules/react-native-reanimated'
+
+  # React Native Safe Area Context
+  pod 'RNSafeAreaContext', :path => '../node_modules/react-native-safe-area-context'
+
+  # React Native Screens
+  pod 'RNScreens', :path => '../node_modules/react-native-screens'
+
+  # React Native Paper (if using)
+  # pod 'react-native-paper', :path => '../node_modules/react-native-paper'
+
+  # ==========================================================================
+  # Firebase Dependencies
+  # ==========================================================================
+
+  # Firebase Core
+  pod 'Firebase', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseAnalytics', :modular_headers => true
+
+  # Firebase Messaging (Push Notifications)
+  pod 'FirebaseMessaging', :modular_headers => true
+
+  # Firebase Crashlytics
+  pod 'FirebaseCrashlytics', :modular_headers => true
+
+  # Firebase Performance
+  pod 'FirebasePerformance', :modular_headers => true
+
+  # Firebase Remote Config
+  pod 'FirebaseRemoteConfig', :modular_headers => true
+
+  # React Native Firebase
+  pod 'react-native-firebase', :path => '../node_modules/react-native-firebase'
+
+  # React Native Firebase Messaging
+  pod 'react-native-firebase-messaging', :path => '../node_modules/@react-native-firebase/messaging'
+
+  # React Native Firebase Analytics
+  pod 'react-native-firebase-analytics', :path => '../node_modules/@react-native-firebase/analytics'
+
+  # React Native Firebase Crashlytics
+  pod 'react-native-firebase-crashlytics', :path => '../node_modules/@react-native-firebase/crashlytics'
+
+  # React Native Firebase Performance
+  pod 'react-native-firebase-performance', :path => '../node_modules/@react-native-firebase/performance'
+
+  # React Native Firebase Remote Config
+  pod 'react-native-firebase-remote-config', :path => '../node_modules/@react-native-firebase/remote-config'
+
+  # ==========================================================================
+  # Google Maps Dependencies
+  # ==========================================================================
+
+  pod 'GoogleMaps', '~> 7.0'
+  pod 'GooglePlaces', '~> 7.0'
+  pod 'Google-Maps-iOS-Utils', '~> 4.0'
+
+  # ==========================================================================
+  # Payment Dependencies
+  # ==========================================================================
+
+  # Stripe
+  # pod 'Stripe', '~> 23.0'
+
+  # ==========================================================================
+  # Testing Dependencies
+  # ==========================================================================
+
+  target 'ParkingSystemTests' do
+    inherit! :complete
+    # Pods for testing
+  end
+
+  # ==========================================================================
+  # Flipper Configuration (Debug only)
+  # ==========================================================================
+
+  # Enables Flipper.
+  #
+  # Note that if you have use_frameworks! enabled, Flipper will not work and
+  # you should disable the next line.
+  if $RNFlipperEnabled
+    use_flipper!({ 'Flipper' => '0.182.0' })
+  end
+
+  # ==========================================================================
+  # Post Install Scripts
+  # ==========================================================================
+
+  post_install do |installer|
+    react_native_post_install(installer)
+
+    # Fix for Xcode 14+
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+        
+        # Fix for React Native 0.73+
+        if target.name == 'React-Codegen'
+          config.build_settings['HEADER_SEARCH_PATHS'] = ['$(inherited)', '$(PODS_ROOT)/Headers/Public']
+        end
+        
+        # Fix for React Native 0.73+
+        if target.name == 'React-RCTFabric'
+          config.build_settings['HEADER_SEARCH_PATHS'] = ['$(inherited)', '$(PODS_ROOT)/Headers/Public']
+        end
+        
+        # Fix for Hermes
+        if target.name == 'hermes-engine'
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+        end
+        
+        # Fix for React Native Permissions
+        if target.name == 'react-native-permissions'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_LOCATION=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_CAMERA=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_MICROPHONE=1'
+        end
+      end
+    end
+  end
+end
+
+# ============================================================================
+# Additional Configuration
+# ============================================================================
+
+# Enable modular headers for Firebase
+$RNFirebaseAsStaticFramework = true
+
+# Preinstall hook to clean up
+pre_install do |installer|
+  # Clean up any previous installations
+  # system("rm -rf Pods")
+end
+
+# ============================================================================
+# Workspace Configuration
+# ============================================================================
+
+# Use the workspace that includes the project and Pods
+workspace 'ParkingSystem.xcworkspace'
+
+# ============================================================================
+# Version Information
+# ============================================================================
+
+puts "========================================"
+puts "🚀 Parking System Podfile"
+puts "========================================"
+puts "📱 iOS Platform: 13.0"
+puts "🔧 React Native: #{`node -p "require('../node_modules/react-native/package.json').version"`}"
+puts "🟢 Hermes: #{$RNHermesEnabled}"
+puts "🔵 Fabric: #{$RNFabricEnabled}"
+puts "========================================"

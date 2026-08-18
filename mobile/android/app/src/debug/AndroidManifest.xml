@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================================
+     Debug Android Manifest
+     ============================================================================ -->
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.parkingsystem">
+
+    <!-- ============================================================================
+    Permissions for Debug Build
+    ============================================================================ -->
+
+    <!-- Allow debugging -->
+    <uses-permission android:name="android.permission.SET_DEBUG_APP" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- ============================================================================
+    Application
+    ============================================================================ -->
+
+    <application
+        android:debuggable="true"
+        android:label="@string/app_name_debug"
+        android:icon="@mipmap/ic_launcher_debug"
+        tools:replace="android:icon,android:label">
+
+        <!-- ============================================================================
+        Debug Activities
+        ============================================================================ -->
+
+        <!-- Developer Settings Activity -->
+        <activity
+            android:name="com.facebook.react.devsupport.DevSettingsActivity"
+            android:exported="false" />
+
+        <!-- Debug Menu Activity -->
+        <activity
+            android:name="com.facebook.react.devsupport.DevMenuActivity"
+            android:exported="false" />
+
+        <!-- ============================================================================
+        Debug Services
+        ============================================================================ -->
+
+        <!-- React Native Debugger Service -->
+        <service
+            android:name="com.facebook.react.devsupport.JSDebuggerWebSocketService"
+            android:exported="false" />
+
+        <!-- ============================================================================
+        Debug Receivers
+        ============================================================================ -->
+
+        <!-- Debug Log Receiver -->
+        <receiver
+            android:name="com.facebook.react.devsupport.LogReceiver"
+            android:exported="false" />
+
+        <!-- ============================================================================
+        Debug Meta Data
+        ============================================================================ -->
+
+        <!-- Flipper (Debugging Tool) -->
+        <meta-data
+            android:name="com.facebook.flipper.enabled"
+            android:value="true" />
+
+        <!-- React Native Debugger -->
+        <meta-data
+            android:name="react.native.debug"
+            android:value="true" />
+
+        <!-- Hermes Debugger -->
+        <meta-data
+            android:name="hermes.debug"
+            android:value="true" />
+
+        <!-- Firebase Debug -->
+        <meta-data
+            android:name="firebase_debug"
+            android:value="true" />
+
+        <!-- Enable Layout Inspector -->
+        <meta-data
+            android:name="android.inspector.enable"
+            android:value="true" />
+
+        <!-- Enable Developer Tools -->
+        <meta-data
+            android:name="android.developer"
+            android:value="true" />
+
+        <!-- ============================================================================
+        Debug Network Security Config
+        ============================================================================ -->
+
+        <meta-data
+            android:name="android.security.net.config"
+            android:resource="@xml/network_security_config_debug" />
+
+        <!-- ============================================================================
+        Debug Features
+        ============================================================================ -->
+
+        <!-- Enable Chrome Debugging -->
+        <meta-data
+            android:name="com.facebook.react.devsupport.DevSupportManagerBase"
+            android:value="true" />
+
+        <!-- Enable Overlay Permissions -->
+        <meta-data
+            android:name="android.permission.SYSTEM_ALERT_WINDOW"
+            android:value="true" />
+
+        <!-- ============================================================================
+        Debug Code
+        ============================================================================ -->
+
+        <!-- Code for debug builds -->
+        <meta-data
+            android:name="build.type"
+            android:value="debug" />
+
+        <!-- Version for debug builds -->
+        <meta-data
+            android:name="build.version"
+            android:value="${versionName}" />
+
+        <!-- ============================================================================
+        Debug Strict Mode
+        ============================================================================ -->
+
+        <!-- Enable Strict Mode in debug -->
+        <meta-data
+            android:name="strict_mode.enabled"
+            android:value="true" />
+
+        <!-- ============================================================================
+        Debug Layout Inspector
+        ============================================================================ -->
+
+        <meta-data
+            android:name="android.layout.inspector"
+            android:value="true" />
+
+    </application>
+
+    <!-- ============================================================================
+    Debug Features
+    ============================================================================ -->
+
+    <!-- Allow mock locations -->
+    <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
+
+</manifest>

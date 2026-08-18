@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Parking Management System</string>
+    <string name="notification_channel_name">Parking System</string>
+    <string name="notification_channel_description">Parking System Notifications</string>
+    <string name="default_notification_channel_id">parking_system_channel</string>
+    <string name="app_name_debug">Parking System (Debug)</string>
+</resources>

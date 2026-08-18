@@ -1,0 +1,69 @@
+# ============================================================================
+# Git Attributes for iOS
+# ============================================================================
+
+# Auto-detect text files and perform LF normalization
+* text=auto
+
+# Explicitly declare text files you want to always be normalized and converted
+*.h text
+*.m text
+*.mm text
+*.c text
+*.cpp text
+*.swift text
+*.xib text
+*.storyboard text
+*.plist text
+*.xml text
+*.json text
+*.js text
+*.ts text
+*.jsx text
+*.tsx text
+*.rb text
+*.py text
+*.sh text
+*.bash text
+*.zsh text
+*.yml text
+*.yaml text
+*.toml text
+
+# Explicitly declare binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.mp4 binary
+*.mov binary
+*.aiff binary
+*.wav binary
+*.xlsx binary
+*.docx binary
+*.pptx binary
+*.zip binary
+*.tar.gz binary
+*.dmg binary
+*.pkg binary
+*.xcarchive binary
+*.app binary
+*.ipa binary
+*.dSYM binary
+
+# CocoaPods
+Podfile linguist-vendored
+*.podspec linguist-vendored
+
+# Xcode project files
+*.pbxproj linguist-language=JSON
+*.xcscheme linguist-language=XML
+*.xcworkspacedata linguist-language=XML

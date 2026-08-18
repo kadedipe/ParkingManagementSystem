@@ -1,0 +1,48 @@
+# ============================================================================
+# Production Podfile
+# ============================================================================
+
+platform :ios, '13.0'
+
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+
+# Production settings
+$RNHermesEnabled = true
+$RNFabricEnabled = false
+$RNFlipperEnabled = false
+
+use_react_native!(
+  :path => config[:reactNativePath],
+  :hermes_enabled => $RNHermesEnabled,
+  :fabric_enabled => $RNFabricEnabled,
+  :app_path => "#{Pod::Config.instance.installation_root}/.."
+)
+
+target 'ParkingSystem' do
+  config = use_native_modules!
+
+  # Core dependencies
+  pod 'react-native-config', :path => '../node_modules/react-native-config'
+  pod 'react-native-vector-icons', :path => '../node_modules/react-native-vector-icons'
+
+  # Firebase (Production)
+  pod 'Firebase', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseAnalytics', :modular_headers => true
+  pod 'FirebaseMessaging', :modular_headers => true
+  pod 'FirebaseCrashlytics', :modular_headers => true
+
+  # Google Maps
+  pod 'GoogleMaps', '~> 7.0'
+  pod 'GooglePlaces', '~> 7.0'
+
+  post_install do |installer|
+    react_native_post_install(installer)
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      end
+    end
+  end
+end

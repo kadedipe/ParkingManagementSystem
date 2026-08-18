@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug primary color (slightly different to distinguish) -->
+    <color name="primary_debug">#FF6B6B</color>
+    <color name="status_bar_color_debug">#CC5555</color>
+</resources>

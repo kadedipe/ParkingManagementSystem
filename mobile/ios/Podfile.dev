@@ -1,0 +1,43 @@
+# ============================================================================
+# Development Podfile
+# ============================================================================
+
+platform :ios, '13.0'
+
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+
+# Development settings
+$RNHermesEnabled = true
+$RNFabricEnabled = false
+$RNFlipperEnabled = true
+
+use_react_native!(
+  :path => config[:reactNativePath],
+  :hermes_enabled => $RNHermesEnabled,
+  :fabric_enabled => $RNFabricEnabled,
+  :flipper_configuration => FlipperConfiguration.enabled,
+  :app_path => "#{Pod::Config.instance.installation_root}/.."
+)
+
+target 'ParkingSystem' do
+  config = use_native_modules!
+
+  # All dependencies including development tools
+  pod 'react-native-config', :path => '../node_modules/react-native-config'
+  pod 'react-native-vector-icons', :path => '../node_modules/react-native-vector-icons'
+
+  # Flipper for debugging
+  if $RNFlipperEnabled
+    use_flipper!({ 'Flipper' => '0.182.0' })
+  end
+
+  post_install do |installer|
+    react_native_post_install(installer)
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      end
+    end
+  end
+end

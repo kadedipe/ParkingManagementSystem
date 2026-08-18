@@ -1,0 +1,347 @@
+# ============================================================================
+# iOS Git Ignore
+# ============================================================================
+#
+# This file specifies which iOS-specific files and directories should be
+# ignored by Git. It ensures that build artifacts, user settings, and
+# other generated files are not committed to the repository.
+#
+# ============================================================================
+
+# ============================================================================
+# Xcode User Data
+# ============================================================================
+
+# User-specific Xcode settings
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+xcuserdatad/
+
+# User-specific scheme management
+*.xcodeproj/xcshareddata/xcschemes/*.xcscheme.user
+*.xcodeproj/xcshareddata/xcschemes/*.xcscheme.user.*
+*.xcodeproj/xcuserdata/
+*.xcodeproj/xcuserdata/*.xcuserdatad/
+*.xcodeproj/xcuserdata/*.xcuserdatad/xcschemes/
+*.xcodeproj/xcuserdata/*.xcuserdatad/xcschemes/*.xcscheme
+
+# ============================================================================
+# Build Artifacts
+# ============================================================================
+
+# Derived data
+DerivedData/
+*.deriveddata
+*.xcbuild
+*.xcarchive
+
+# Build products
+build/
+build-*/
+*.app
+*.app.dSYM
+*.ipa
+*.dSYM.zip
+*.xcarchive
+
+# Module cache
+*.modulecache
+*.modulemap
+
+# ============================================================================
+# CocoaPods
+# ============================================================================
+
+# Pods directory (should be committed in some projects, but typically ignored)
+Pods/
+Podfile.lock
+*.podspec
+*.podspec.json
+
+# CocoaPods cache
+~/.cocoapods/
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+
+# ============================================================================
+# Fastlane
+# ============================================================================
+
+# Fastlane generated files
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+fastlane/README.md
+fastlane/metadata/
+
+# Fastlane match
+fastlane/match/
+fastlane/keys/
+fastlane/certs/
+
+# ============================================================================
+# Carthage
+# ============================================================================
+
+# Carthage build artifacts
+Carthage/Build/
+Carthage/Checkouts/
+*.framework.zip
+*.framework.dSYM.zip
+
+# ============================================================================
+# Swift Package Manager
+# ============================================================================
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+.build/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# ============================================================================
+# Firebase
+# ============================================================================
+
+# Firebase configuration files (may contain secrets)
+GoogleService-Info.plist
+GoogleServices-Info.plist
+
+# Firebase crash logs
+*.crash
+*.crashlog
+*.log
+
+# ============================================================================
+# Environment Files
+# ============================================================================
+
+# Environment configuration files
+.env
+.env.local
+.env.*.local
+*.env
+*.env.*
+*.plist
+*.xcconfig
+.xcconfig
+
+# ============================================================================
+# IDE Specific
+# ============================================================================
+
+# Xcode
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserdatad/
+*.xcscmblueprint
+*.xccheckout
+
+# AppCode
+*.iml
+*.iws
+.idea/
+.idea_modules/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# ============================================================================
+# Testing
+# ============================================================================
+
+# Test artifacts
+*.testresults
+*.coverage
+*.lcov
+coverage/
+*.xctest
+*.xctestrun
+
+# Unit test reports
+UnitTestReport.html
+*.test-report
+
+# ============================================================================
+# Documentation
+# ============================================================================
+
+# API documentation
+*.docset
+*.apinotes
+*.dSYM
+
+# ============================================================================
+# Logs
+# ============================================================================
+
+# Log files
+*.log
+*.crash
+*.crashlog
+*.diag
+*.diagnostic
+*.xcactivitylog
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.bak
+*.backup
+
+# Temporary Xcode files
+*.hmap
+*.xcent
+*.xcent.dSYM
+*.pch
+*.gch
+*.obj
+*.dylib
+
+# ============================================================================
+# OS Generated Files
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+.fseventsd
+Thumbs.db
+Desktop.ini
+*.icloud
+
+# ============================================================================
+# Archive Files
+# ============================================================================
+
+# Archive files
+*.zip
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.dmg
+*.pkg
+*.pkg.zip
+
+# ============================================================================
+# Code Signing
+# ============================================================================
+
+# Code signing certificates and keys
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.pem
+*.crt
+*.cer
+*.key
+*.der
+
+# ============================================================================
+# Dependencies
+# ============================================================================
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/
+
+# SPM
+.swiftpm/
+Package.resolved
+
+# ============================================================================
+# CI/CD
+# ============================================================================
+
+# GitHub Actions
+.github/
+.gitlab/
+.azure/
+.travis.yml
+.circleci/
+.jenkins/
+.gitlab-ci.yml
+
+# Fastlane
+fastlane/
+*.fastlane
+
+# ============================================================================
+# Project-Specific
+# ============================================================================
+
+# Project-specific generated files
+*Config.h
+*Config.m
+*Info.plist
+*Info.plist.*
+
+# Crashlytics
+Crashlytics.framework/
+Fabric.framework/
+
+# ============================================================================
+# Exceptions (Files that should be committed despite being in ignore patterns)
+# ============================================================================
+
+# But don't ignore these files
+!Podfile
+!.gitignore
+!README.md
+!LICENSE
+!*.xcscheme
+!Contents.json
+
+# ============================================================================
+# Notes
+# ============================================================================
+
+# 1. Podfile.lock - Usually committed, but commented out if you want to ignore it
+# 2. GoogleService-Info.plist - Contains API keys, should be ignored or encrypted
+# 3. .env files - Should never be committed to version control
+# 4. xcuserdata - User-specific data, always ignore
+# 5. Pods/ - Usually ignored, but some projects commit it
+
+# ============================================================================
+# Common Patterns Explained
+# ============================================================================
+
+# *.xcuserstate: Xcode user state files
+# *.xcscmblueprint: Xcode source control blueprints
+# xcuserdata/: Xcode user data directory
+# build/: Build output directory
+# Pods/: CocoaPods installation directory
+# DerivedData/: Xcode derived data

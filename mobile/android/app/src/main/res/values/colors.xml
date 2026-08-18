@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Colors -->
+    <color name="primary">#1976d2</color>
+    <color name="primary_dark">#1565c0</color>
+    <color name="primary_light">#42a5f5</color>
+    <color name="secondary">#dc004e</color>
+    <color name="accent">#42a5f5</color>
+    
+    <!-- Status Bar -->
+    <color name="status_bar_color">#1565c0</color>
+    <color name="navigation_bar_color">#1565c0</color>
+    
+    <!-- Splash Screen -->
+    <color name="splash_background">#1976d2</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#1a1a1a</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_light">#ffffff</color>
+    
+    <!-- Background Colors -->
+    <color name="background">#f5f5f5</color>
+    <color name="background_light">#ffffff</color>
+    
+    <!-- Semantic Colors -->
+    <color name="success">#4caf50</color>
+    <color name="warning">#ff9800</color>
+    <color name="error">#d32f2f</color>
+    <color name="info">#0288d1</color>
+</resources>

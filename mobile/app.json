@@ -1,0 +1,233 @@
+{
+  "name": "Parking Management System",
+  "displayName": "Parking App",
+  "expo": {
+    "name": "Parking Management System",
+    "slug": "parking-management-system",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.parkingapp.ios",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to find nearby parking spots",
+        "NSLocationAlwaysUsageDescription": "This app uses your location to find nearby parking spots",
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for parking",
+        "NSPhotoLibraryUsageDescription": "This app uses your photo library to upload parking spot images",
+        "NSFaceIDUsageDescription": "This app uses Face ID for secure login",
+        "CFBundleDisplayName": "Parking App",
+        "UIStatusBarStyle": "UIStatusBarStyleDarkContent"
+      },
+      "config": {
+        "googleMapsApiKey": "YOUR_IOS_GOOGLE_MAPS_API_KEY",
+        "stripe": {
+          "merchantIdentifier": "merchant.com.parkingapp"
+        }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "android": {
+      "package": "com.parkingapp.android",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_ANDROID_GOOGLE_MAPS_API_KEY"
+        }
+      },
+      "googleServicesFile": "./google-services.json"
+    },
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FFFFFF",
+      "translucent": false
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Parking App to use your location to find nearby parking spots.",
+          "locationWhenInUsePermission": "Allow Parking App to use your location to find nearby parking spots."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Parking App to access your camera to scan QR codes."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Parking App to access your photos to upload parking spot images."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#007AFF",
+          "sounds": ["./assets/sounds/notification.wav"]
+        }
+      ],
+      [
+        "expo-secure-store",
+        {}
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "imageWidth": 200
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Montserrat-Regular.ttf",
+            "./assets/fonts/Montserrat-Medium.ttf",
+            "./assets/fonts/Montserrat-Bold.ttf",
+            "./assets/fonts/Montserrat-Light.ttf",
+            "./assets/fonts/Montserrat-SemiBold.ttf",
+            "./assets/fonts/Montserrat-Italic.ttf",
+            "./assets/fonts/Poppins-Regular.ttf",
+            "./assets/fonts/Poppins-Medium.ttf",
+            "./assets/fonts/Poppins-Bold.ttf",
+            "./assets/fonts/Poppins-SemiBold.ttf",
+            "./assets/fonts/Poppins-Light.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          },
+          "android": {
+            "compileSdkVersion": 33,
+            "targetSdkVersion": 33,
+            "buildToolsVersion": "33.0.0",
+            "kotlinVersion": "1.8.0"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      },
+      "env": {
+        "API_URL": "https://api.parkingapp.com/api",
+        "WS_URL": "wss://ws.parkingapp.com",
+        "GOOGLE_MAPS_API_KEY": "YOUR_GOOGLE_MAPS_API_KEY",
+        "STRIPE_PUBLISHABLE_KEY": "YOUR_STRIPE_PUBLISHABLE_KEY",
+        "SENTRY_DSN": "YOUR_SENTRY_DSN",
+        "MIXPANEL_TOKEN": "YOUR_MIXPANEL_TOKEN"
+      }
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD"
+    },
+    "developmentClient": {
+      "silentLaunch": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "themeColor": "#FFFFFF",
+      "backgroundColor": "#FFFFFF",
+      "name": "Parking Management System",
+      "shortName": "Parking App",
+      "description": "Find, book, and pay for parking with ease",
+      "startUrl": "/",
+      "display": "standalone",
+      "orientation": "portrait",
+      "scope": "/",
+      "lang": "en",
+      "dir": "ltr",
+      "categories": ["utilities", "travel", "transportation"],
+      "keywords": ["parking", "booking", "ev charging", "parking management"],
+      "author": "Parking Management Team",
+      "manifest": {
+        "name": "Parking Management System",
+        "short_name": "Parking App",
+        "description": "Find, book, and pay for parking with ease",
+        "start_url": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#FFFFFF",
+        "theme_color": "#007AFF",
+        "icons": [
+          {
+            "src": "./assets/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+          },
+          {
+            "src": "./assets/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+          }
+        ]
+      }
+    },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#007AFF",
+      "androidMode": "default",
+      "androidCollapsedTitle": "Parking App"
+    },
+    "scheme": "parkingapp",
+    "privacy": "public",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "githubUrl": "https://github.com/parkingapp/parking-management-system",
+    "primaryColor": "#007AFF",
+    "hooks": {
+      "postPublish": [
+        {
+          "file": "sentry-expo/upload-sourcemaps",
+          "config": {
+            "organization": "parking-app",
+            "project": "parking-management-system",
+            "authToken": "YOUR_SENTRY_AUTH_TOKEN"
+          }
+        }
+      ]
+    }
+  }
+}
