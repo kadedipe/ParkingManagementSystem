@@ -4,20 +4,7 @@
   "description": "Modern React frontend for Parking Management System",
   "private": true,
   "type": "module",
-  "author": "Parking Management System Team",
-  "license": "MIT",
-  "homepage": "https://parking-system.com",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/parking-management-system.git"
-  },
-  "bugs": {
-    "url": "https://github.com/yourusername/parking-management-system/issues"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  },
+  "engines": {"node": ">=18.0.0", "npm": ">=9.0.0"},
   "scripts": {
     "dev": "vite",
     "dev:debug": "vite --debug",
@@ -43,6 +30,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "generate": "plop",
+    "generate-pwa-icons": "node scripts/generate-pwa-icons.js",
     "prepare": "husky install",
     "pre-commit": "lint-staged",
     "docker:build": "docker build -t parking-frontend .",
@@ -103,10 +91,11 @@
     "identity-obj-proxy": "^3.0.0",
     "jsdom": "^23.2.0",
     "lint-staged": "^15.2.0",
-    "plop": "^4.0.1",
+    "plop": "^4.0.0",
     "postcss": "^8.4.33",
     "prettier": "^3.2.5",
     "sass": "^1.70.0",
+    "sharp": "^0.33.2",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
@@ -114,45 +103,14 @@
     "vite-plugin-svgr": "^4.2.0",
     "vitest": "^1.2.2"
   },
-  "overrides": {
-    "react": "$react",
-    "react-dom": "$react-dom"
-  },
+  "overrides": {"react": "$react", "react-dom": "$react-dom"},
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{css,scss}": [
-      "prettier --write"
-    ]
+    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{css,scss}": ["prettier --write"]
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
-    }
-  },
-  "volta": {
-    "node": "18.17.0",
-    "npm": "10.2.5"
-  },
-  "scripts": {
-    "generate-pwa-icons": "node scripts/generate-pwa-icons.js"
-  },
-  "devDependencies": {
-    "sharp": "^0.33.2"
-  }
+  "volta": {"node": "18.17.0", "npm": "10.2.5"}
 }
