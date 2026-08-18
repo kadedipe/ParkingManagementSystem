@@ -1,0 +1,25 @@
+# W3AF script - Basic security scanning
+# This script performs a baseline web application security scan
+
+# Set target URL
+plugins
+output console,text_file
+output config text_file
+set output_file /w3af-output/w3af-results.txt
+back
+
+# Configure crawling
+crawl web_spider
+crawl config web_spider
+set only_forward True
+back
+
+# Configure auditing
+audit xss
+audit sqli
+audit file_upload
+audit directory_indexing
+
+# Run the scan
+start
+exit
