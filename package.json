@@ -1,0 +1,76 @@
+{
+  "name": "parking-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A comprehensive parking management system with EV charging support",
+  "author": "Parking Management Team <team@parking-system.com>",
+  "license": "MIT",
+  "homepage": "https://parking-system.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/parking-management-system.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/parking-management-system/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.10.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "preview": "turbo run preview",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md,yml,yaml}\"",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "test:load": "turbo run test:load",
+    "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "prepare": "husky install",
+    "precommit": "lint-staged",
+    "release": "standard-version",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major",
+    "release:patch": "standard-version --release-as patch",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^18.0.0",
+    "@commitlint/config-conventional": "^18.0.0",
+    "@types/node": "^20.9.0",
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
+    "@typescript-eslint/parser": "^6.11.0",
+    "conventional-changelog-cli": "^4.1.0",
+    "eslint": "^8.53.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.1.0",
+    "prettier": "^3.0.3",
+    "standard-version": "^9.5.0",
+    "turbo": "^1.10.16",
+    "typescript": "^5.2.2"
+  },
+  "volta": {
+    "node": "18.18.2",
+    "pnpm": "8.10.0"
+  }
+}

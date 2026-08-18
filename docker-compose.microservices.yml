@@ -1,0 +1,256 @@
+# ============================================================================
+# Docker Compose - Microservices Stack
+# ============================================================================
+
+# parking-management-system/docker-compose.microservices.yml
+
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    image: parking-api-gateway:latest
+    container_name: parking-api-gateway
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+      - SERVICES_PARKING=http://parking-service:3002
+      - SERVICES_BOOKING=http://booking-service:3003
+      - SERVICES_PAYMENT=http://payment-service:3004
+      - SERVICES_USER=http://user-service:3005
+      - SERVICES_CHARGING=http://charging-service:3006
+      - SERVICES_NOTIFICATION=http://notification-service:3007
+    ports:
+      - "3000:3000"
+    depends_on:
+      - parking-service
+      - booking-service
+      - payment-service
+      - user-service
+      - charging-service
+      - notification-service
+    networks:
+      - parking-network
+
+  # Parking Service
+  parking-service:
+    build:
+      context: ./services/parking-service
+      dockerfile: Dockerfile
+    container_name: parking-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - SERVICE_NAME=parking-service
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=parking_db
+      - DB_USER=parking_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=*
+      - RUN_MIGRATIONS=true
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  # Booking Service
+  booking-service:
+    build:
+      context: ./services/booking-service
+      dockerfile: Dockerfile
+    container_name: booking-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - SERVICE_NAME=booking-service
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=booking_db
+      - DB_USER=booking_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - PARKING_SERVICE_URL=http://parking-service:3002
+      - CORS_ORIGIN=*
+      - RUN_MIGRATIONS=true
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+      - SERVICE_NAME=payment-service
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=payment_db
+      - DB_USER=payment_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - CORS_ORIGIN=*
+      - RUN_MIGRATIONS=true
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - SERVICE_NAME=user-service
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=user_db
+      - DB_USER=user_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=*
+      - RUN_MIGRATIONS=true
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  # Charging Service
+  charging-service:
+    build:
+      context: ./services/charging-service
+      dockerfile: Dockerfile
+    container_name: charging-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      - SERVICE_NAME=charging-service
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=charging_db
+      - DB_USER=charging_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=*
+      - RUN_MIGRATIONS=true
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3007
+      - SERVICE_NAME=notification-service
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=notification_db
+      - DB_USER=notification_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - EXPONENT_TOKEN=${EXPONENT_TOKEN}
+      - CORS_ORIGIN=*
+      - RUN_MIGRATIONS=true
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  # PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: parking-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=en_US.UTF-8
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - parking-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: parking-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - parking-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  parking-network:
+    driver: bridge

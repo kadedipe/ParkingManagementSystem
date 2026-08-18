@@ -1,0 +1,52 @@
+﻿MIT License
+
+
+Copyright (c) 2023 Kolapo Adedipe
+
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+
+This comprehensive package.json and supporting files provide:
+
+**Features:**
+1. **Build System**: Rollup with TypeScript and Babel
+2. **Testing**: Jest with React Testing Library
+3. **Code Quality**: ESLint, Prettier, TypeScript
+4. **Documentation**: Storybook integration
+5. **CI/CD**: GitHub Actions workflow
+6. **Version Management**: Semantic versioning scripts
+7. **Peer Dependencies**: React and React Native support
+8. **Type Safety**: Full TypeScript support
+9. **Bundle Optimization**: Tree-shaking and minification
+10. **Publishing**: Ready for npm publishing
+
+**Best Practices:**
+- Modern build tools (Rollup)
+- TypeScript for type safety
+- ESLint and Prettier for code quality
+- Storybook for component documentation
+- Jest for testing
+- CI/CD pipeline
+- Semantic versioning
+- Tree-shaking support
+- React and React Native compatibility
+- Easy to consume and extend
+
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

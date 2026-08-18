@@ -1,0 +1,84 @@
+# ============================================================================
+# Gitleaks Configuration - Secret Detection Rules
+# ============================================================================
+
+# parking-management-system/.gitleaks.toml
+
+title = "Parking Management System - Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''(AKIA|ABIA|ACCA|ASIA|AIDA)[A-Z0-9]{16}'''
+tags = ["aws", "secret"]
+
+[[rules]]
+id = "aws-secret-key"
+description = "AWS Secret Key"
+regex = '''(?i)aws.{0,20}?(?:key|secret|token).{0,20}?([A-Za-z0-9+/]{40})'''
+tags = ["aws", "secret"]
+
+[[rules]]
+id = "github-token"
+description = "GitHub Personal Access Token"
+regex = '''(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}'''
+tags = ["github", "token"]
+
+[[rules]]
+id = "jwt-token"
+description = "JWT Token"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9._-]{10,}\.[A-Za-z0-9._-]{10,}'''
+tags = ["jwt", "token"]
+
+[[rules]]
+id = "private-key"
+description = "Private Key"
+regex = '''-----BEGIN (RSA|DSA|EC|PGP|OPENSSH) PRIVATE KEY-----'''
+tags = ["key", "private"]
+
+[[rules]]
+id = "slack-token"
+description = "Slack Token"
+regex = '''xox[baprs]-[A-Za-z0-9-]+'''
+tags = ["slack", "token"]
+
+[[rules]]
+id = "stripe-api-key"
+description = "Stripe API Key"
+regex = '''(sk_live|pk_live)_[A-Za-z0-9]{24,}'''
+tags = ["stripe", "key"]
+
+[[rules]]
+id = "twilio-api-key"
+description = "Twilio API Key"
+regex = '''SK[A-Za-z0-9]{32}'''
+tags = ["twilio", "key"]
+
+[[rules]]
+id = "sendgrid-api-key"
+description = "SendGrid API Key"
+regex = '''SG\.[A-Za-z0-9._-]{40,}'''
+tags = ["sendgrid", "key"]
+
+[[rules]]
+id = "database-connection-string"
+description = "Database Connection String"
+regex = '''(postgresql|mysql|mongodb|redis)://[A-Za-z0-9._-]+:[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:[0-9]+/[A-Za-z0-9_-]+'''
+tags = ["database", "connection"]
+
+[[rules]]
+id = "basic-auth-credentials"
+description = "Basic Authentication Credentials"
+regex = '''https?://[A-Za-z0-9._-]+:[A-Za-z0-9._-]+@[A-Za-z0-9._-]+'''
+tags = ["auth", "credentials"]
+
+[allowlist]
+description = "Allowed paths"
+paths = [
+    '''.git''',
+    '''node_modules''',
+    '''.env.example''',
+]
