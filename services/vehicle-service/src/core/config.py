@@ -5,7 +5,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=(".env", ".env.production"), extra="ignore", case_sensitive=True)
+    model_config = SettingsConfigDict(
+        env_file=(".env", ".env.production"),
+        extra="ignore",
+        case_sensitive=True,
+    )
 
     SERVICE_NAME: str = "vehicle-service"
     VERSION: str = "2.1.0"
@@ -21,9 +25,16 @@ class Settings(BaseSettings):
 
     @field_validator("JWT_SECRET")
     @classmethod
-    def validate_secret(cls, value: str) -> str:
-        if len(value) < 32 and value != "change-me-in-production":
-            raise ValueError("JWT_SECRET must be at least 32 characters")
+    def validate_secret(cls, value: str, info) -> str:
+        if info.data.get("ENVIRONMENT") == "production" and (len(value) < 32 or value == "change-me-in-production"):
+            raise ValueError("JWT_SECRET must be a strong secret of at least 32 characters in production")
+        return value
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database(cls, value: str, info) -> str:
+        if info.data.get("ENVIRONMENT") == "production" and value.startswith("sqlite"):
+            raise ValueError("DATABASE_URL must point to PostgreSQL in production")
         return value
 
 
