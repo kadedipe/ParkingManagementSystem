@@ -1,0 +1,18 @@
+# ============================================================================
+# ads.txt
+# ============================================================================
+#
+# This file helps protect your site from unauthorized ad inventory sales.
+# It declares which ad sellers are authorized to sell your inventory.
+#
+# For more information, see:
+# https://support.google.com/admanager/answer/7688542
+# ============================================================================
+
+# Google Ad Manager
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+
+# Facebook Audience Network
+facebook.com, 000000000000000, DIRECT, 000000000000000
+
+# Add your authorized sellers here

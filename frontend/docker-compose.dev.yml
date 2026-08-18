@@ -1,0 +1,34 @@
+# ============================================================================
+# Docker Compose for Development
+# ============================================================================
+
+version: '3.8'
+
+services:
+  frontend-dev:
+    image: node:20-alpine
+    container_name: parking-frontend-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://backend:8000
+      - VITE_WEBSOCKET_URL=ws://backend:8000/ws
+    command: |
+      sh -c "
+        corepack enable &&
+        corepack prepare pnpm@latest --activate &&
+        pnpm install &&
+        pnpm run dev --host
+      "
+    networks:
+      - parking-network
+    restart: unless-stopped
+
+networks:
+  parking-network:
+    external: true

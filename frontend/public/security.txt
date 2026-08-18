@@ -1,0 +1,29 @@
+# ============================================================================
+# security.txt
+# ============================================================================
+#
+# This file provides security researchers with a way to report
+# security vulnerabilities to the appropriate team.
+#
+# For more information, see:
+# https://securitytxt.org/
+# ============================================================================
+
+# Contact Information
+Contact: mailto:security@parking-system.com
+Contact: https://parking-system.com/security
+
+# Encryption
+Encryption: https://parking-system.com/.well-known/pgp-key.txt
+
+# Disclosure Policy
+Policy: https://parking-system.com/security-policy
+
+# Acknowledgements
+Acknowledgments: https://parking-system.com/security-acknowledgments
+
+# Preferred Languages
+Preferred-Languages: en, es, fr
+
+# Expiration
+Expires: 2025-01-01T00:00:00.000Z

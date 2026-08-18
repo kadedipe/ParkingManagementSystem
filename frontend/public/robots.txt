@@ -1,0 +1,262 @@
+# ============================================================================
+# Robots.txt
+# ============================================================================
+#
+# This file controls how search engine crawlers interact with the
+# Parking Management System website.
+#
+# For more information about robots.txt, see:
+# https://developers.google.com/search/docs/advanced/robots/robots_txt
+#
+# ============================================================================
+
+# ============================================================================
+# User-agent Directives
+# ============================================================================
+
+# Allow all crawlers to access the site
+User-agent: *
+
+# ============================================================================
+# Allow Directives
+# ============================================================================
+
+# Allow access to main application routes
+Allow: /
+
+# Allow access to static assets
+Allow: /static/
+Allow: /assets/
+Allow: /images/
+Allow: /icons/
+Allow: /fonts/
+Allow: /css/
+Allow: /js/
+
+# ============================================================================
+# Disallow Directives
+# ============================================================================
+
+# Disallow access to admin areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /settings/
+Disallow: /profile/
+Disallow: /payments/
+Disallow: /bookings/
+Disallow: /vehicles/
+Disallow: /parking/
+Disallow: /charging/
+
+# Disallow access to sensitive files
+Disallow: /config/
+Disallow: /src/
+Disallow: /node_modules/
+Disallow: /vendor/
+Disallow: /tests/
+Disallow: /scripts/
+Disallow: /coverage/
+
+# Disallow access to development files
+Disallow: /*.js.map$
+Disallow: /*.css.map$
+Disallow: /*.ts$
+Disallow: /*.jsx$
+Disallow: /*.tsx$
+
+# Disallow access to version control
+Disallow: /.git/
+Disallow: /.svn/
+Disallow: /.hg/
+Disallow: /CVS/
+
+# Disallow access to environment files
+Disallow: /*.env$
+Disallow: /*.env.*$
+
+# Disallow access to log files
+Disallow: /*.log$
+Disallow: /logs/
+
+# Disallow access to temporary files
+Disallow: /*.tmp$
+Disallow: /*.temp$
+Disallow: /temp/
+Disallow: /tmp/
+
+# Disallow access to backup files
+Disallow: /*.bak$
+Disallow: /*.backup$
+Disallow: /*.old$
+
+# Disallow access to IDE files
+Disallow: /.idea/
+Disallow: /.vscode/
+Disallow: /*.sublime-*
+
+# Disallow access to package files
+Disallow: /package.json
+Disallow: /package-lock.json
+Disallow: /yarn.lock
+Disallow: /pnpm-lock.yaml
+Disallow: /composer.json
+Disallow: /composer.lock
+
+# Disallow access to configuration files
+Disallow: /webpack.config.js
+Disallow: /vite.config.js
+Disallow: /tsconfig.json
+Disallow: /tailwind.config.js
+Disallow: /postcss.config.js
+Disallow: /babel.config.js
+Disallow: /jest.config.js
+Disallow: /cypress.json
+
+# Disallow access to documentation
+Disallow: /docs/
+Disallow: /documentation/
+Disallow: /README.md
+Disallow: /CHANGELOG.md
+Disallow: /CONTRIBUTING.md
+Disallow: /LICENSE
+
+# ============================================================================
+# Crawl-delay (for slower crawlers)
+# ============================================================================
+
+# Be respectful to servers
+Crawl-delay: 1
+
+# ============================================================================
+# Sitemap
+# ============================================================================
+
+# Sitemap location
+Sitemap: https://parking-system.com/sitemap.xml
+
+# ============================================================================
+# Environment-Specific Directives
+# ============================================================================
+
+# Production environment - allow crawling
+# User-agent: *
+# Allow: /
+# Disallow: /admin/
+# Disallow: /api/
+
+# Staging environment - block all crawlers
+# User-agent: *
+# Disallow: /
+
+# Development environment - block all crawlers
+# User-agent: *
+# Disallow: /
+
+# ============================================================================
+# Search Engine Specific Directives
+# ============================================================================
+
+# Googlebot
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /profile/
+Disallow: /payments/
+Disallow: /bookings/
+
+# Bingbot
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/
+
+# Baiduspider
+User-agent: Baiduspider
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# Yandex
+User-agent: Yandex
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# DuckDuckBot
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# ============================================================================
+# Special Crawlers
+# ============================================================================
+
+# Block malicious crawlers
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: Wget
+Disallow: /
+
+User-agent: curl
+Disallow: /
+
+# ============================================================================
+# SEO Best Practices
+# ============================================================================
+
+# 1. Allow access to content that should be indexed
+# 2. Block access to admin, private, and API endpoints
+# 3. Use sitemap to guide crawlers to important pages
+# 4. Use crawl-delay to be respectful to servers
+# 5. Monitor crawler activity in server logs
+
+# ============================================================================
+# Common Mistakes to Avoid
+# ============================================================================
+
+# ❌ Don't block CSS/JS files - this can harm SEO
+# ❌ Don't use the same robots.txt for all environments
+# ❌ Don't forget to update sitemap URL
+# ❌ Don't block crawlers from all content accidentally
+
+# ✅ Do test robots.txt in Google Search Console
+# ✅ Do use environment-specific robots.txt
+# ✅ Do keep your sitemap updated
+# ✅ Do monitor crawler errors
+
+# ============================================================================
+# Testing Your Robots.txt
+# ============================================================================
+
+# Use Google Search Console to test your robots.txt:
+# 1. Go to Google Search Console
+# 2. Navigate to "robots.txt Tester"
+# 3. Enter your robots.txt content
+# 4. Test different URLs to see if they're allowed
+
+# Use curl to test:
+# curl -A "Googlebot" https://parking-system.com/robots.txt
+
+# ============================================================================
+# Changelog
+# ============================================================================
+
+# Version 1.0.0 - Initial robots.txt
+# - Added basic allow/disallow rules
+# - Added sitemap reference
+# - Added crawler-specific rules

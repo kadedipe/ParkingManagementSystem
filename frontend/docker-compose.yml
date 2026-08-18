@@ -1,0 +1,38 @@
+# ============================================================================
+# Docker Compose for Frontend Service
+# ============================================================================
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_APP_NAME: ${VITE_APP_NAME:-"Parking Management System"}
+        VITE_APP_DESCRIPTION: ${VITE_APP_DESCRIPTION:-"A comprehensive parking management system"}
+        VITE_ENVIRONMENT: ${VITE_ENVIRONMENT:-production}
+        VITE_WEBSOCKET_URL: ${VITE_WEBSOCKET_URL:-ws://localhost:8000/ws}
+    container_name: parking-frontend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - parking-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  parking-network:
+    external: true
