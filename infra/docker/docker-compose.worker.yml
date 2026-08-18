@@ -1,0 +1,225 @@
+# ============================================================================
+# Docker Compose - Worker Service Integration
+# ============================================================================
+
+# parking-management-system/infra/docker/docker-compose.worker.yml
+
+version: '3.8'
+
+services:
+  # Email Worker
+  worker-email:
+    build:
+      context: ../../backend
+      dockerfile: ../infra/docker/Dockerfile.worker
+    container_name: parking-worker-email
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - WORKER_TYPE=email
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=parking_db
+      - DB_USER=parking_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - EMAIL_FROM=noreply@parkingapp.com
+      - RUN_MIGRATIONS=false
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - parking-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Notification Worker
+  worker-notification:
+    build:
+      context: ../../backend
+      dockerfile: ../infra/docker/Dockerfile.worker
+    container_name: parking-worker-notification
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - WORKER_TYPE=notification
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=parking_db
+      - DB_USER=parking_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - EXPONENT_TOKEN=${EXPONENT_TOKEN}
+      - RUN_MIGRATIONS=false
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - parking-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Payment Worker
+  worker-payment:
+    build:
+      context: ../../backend
+      dockerfile: ../infra/docker/Dockerfile.worker
+    container_name: parking-worker-payment
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - WORKER_TYPE=payment
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=parking_db
+      - DB_USER=parking_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - RUN_MIGRATIONS=false
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - parking-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Report Worker
+  worker-report:
+    build:
+      context: ../../backend
+      dockerfile: ../infra/docker/Dockerfile.worker
+    container_name: parking-worker-report
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - WORKER_TYPE=report
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=parking_db
+      - DB_USER=parking_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+      - RUN_MIGRATIONS=false
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - parking-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Cache Worker
+  worker-cache:
+    build:
+      context: ../../backend
+      dockerfile: ../infra/docker/Dockerfile.worker
+    container_name: parking-worker-cache
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - WORKER_TYPE=cache
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=parking_db
+      - DB_USER=parking_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - CACHE_TTL=3600
+      - RUN_MIGRATIONS=false
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - parking-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  parking-network:
+    external: true

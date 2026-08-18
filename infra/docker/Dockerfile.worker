@@ -1,0 +1,92 @@
+# ============================================================================
+# Dockerfile - Worker Service (Background Job Processor)
+# ============================================================================
+
+# parking-management-system/infra/docker/Dockerfile.worker
+
+# Stage 1: Build
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git \
+    openssl-dev \
+    tzdata
+
+# Copy package files
+COPY package*.json ./
+COPY yarn.lock ./
+
+# Install dependencies
+RUN yarn install --frozen-lockfile --production=false
+
+# Copy source code
+COPY . .
+
+# Build application
+RUN yarn build
+
+# Prune dev dependencies
+RUN yarn install --frozen-lockfile --production=true \
+    && yarn cache clean
+
+# Stage 2: Production
+FROM node:18-alpine
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    tzdata \
+    curl \
+    ca-certificates \
+    bash \
+    git
+
+# Set timezone
+ENV TZ=UTC
+
+# Create app user
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nodejs -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy built application from builder
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/yarn.lock ./
+
+# Copy configuration files
+COPY --chown=nodejs:nodejs .env.production ./.env
+COPY --chown=nodejs:nodejs ecosystem.config.js ./
+COPY --chown=nodejs:nodejs worker-entrypoint.sh /usr/local/bin/
+
+# Create necessary directories
+RUN mkdir -p logs temp \
+    && chown -R nodejs:nodejs logs temp
+
+# Make entrypoint executable
+RUN chmod +x /usr/local/bin/worker-entrypoint.sh
+
+# Switch to node user
+USER nodejs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3001/health || exit 1
+
+# Set default environment
+ENV NODE_ENV=production \
+    PORT=3001 \
+    WORKER_TYPE=default
+
+# Start worker
+ENTRYPOINT ["/usr/local/bin/worker-entrypoint.sh"]
+CMD ["node", "dist/worker.js"]

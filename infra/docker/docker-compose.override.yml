@@ -1,0 +1,40 @@
+# ============================================================================
+# Docker Compose Override - Development Environment
+# ============================================================================
+
+# parking-management-system/infra/docker/docker-compose.override.yml
+
+version: '3.8'
+
+services:
+  backend:
+    environment:
+      - NODE_ENV=development
+      - DEBUG=true
+    volumes:
+      - ../../backend/src:/app/src
+      - ../../backend/test:/app/test
+      - ./logs:/app/logs
+    command: npm run start:dev
+
+  frontend:
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000/api
+      - REACT_APP_WS_URL=ws://localhost:3000/ws
+    volumes:
+      - ../../frontend/src:/app/src
+      - ../../frontend/public:/app/public
+    command: npm start
+
+  postgres:
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+
+  redis:
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres-dev-data:

@@ -1,0 +1,67 @@
+# ============================================================================
+# Dockerfile - Mobile App Build Environment
+# ============================================================================
+
+# parking-management-system/infra/docker/Dockerfile.mobile
+
+# Stage 1: Build
+FROM node:18-alpine AS builder
+
+# Install Android SDK dependencies
+RUN apk add --no-cache \
+    openjdk11 \
+    python3 \
+    make \
+    g++ \
+    git \
+    bash
+
+# Set Android environment variables
+ENV ANDROID_HOME=/opt/android-sdk
+ENV PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
+
+# Install Android SDK
+RUN mkdir -p ${ANDROID_HOME} \
+    && cd ${ANDROID_HOME} \
+    && wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip \
+    && unzip commandlinetools-linux-9477386_latest.zip \
+    && rm commandlinetools-linux-9477386_latest.zip \
+    && mkdir -p ${ANDROID_HOME}/cmdline-tools \
+    && mv ${ANDROID_HOME}/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest
+
+# Accept Android licenses
+RUN yes | sdkmanager --licenses
+
+# Install Android SDK components
+RUN sdkmanager "platform-tools" \
+    "platforms;android-33" \
+    "build-tools;33.0.0"
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY yarn.lock ./
+
+# Install dependencies
+RUN yarn install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Build Android APK
+RUN cd android && ./gradlew assembleRelease
+
+# Stage 2: Final
+FROM alpine:latest
+
+WORKDIR /app
+
+# Copy built APK
+COPY --from=builder /app/android/app/build/outputs/apk/release/app-release.apk ./
+
+# Create output directory
+RUN mkdir -p /output
+
+# Copy APK to output
+CMD cp app-release.apk /output/

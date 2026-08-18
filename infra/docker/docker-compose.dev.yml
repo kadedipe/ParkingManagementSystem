@@ -1,0 +1,43 @@
+# ============================================================================
+# Docker Compose - Development Environment with Nginx
+# ============================================================================
+
+# parking-management-system/infra/docker/docker-compose.dev.yml
+
+version: '3.8'
+
+services:
+  # Nginx Development Server
+  nginx-dev:
+    image: nginx:alpine
+    container_name: parking-nginx-dev
+    restart: unless-stopped
+    volumes:
+      - ../nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/ssl:/etc/nginx/ssl:ro
+      - ../nginx/html:/usr/share/nginx/html:ro
+      - ../nginx/logs:/var/log/nginx
+      - ../nginx/cache:/var/cache/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - parking-dev-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  parking-dev-network:
+    driver: bridge
+    name: parking-dev-network
