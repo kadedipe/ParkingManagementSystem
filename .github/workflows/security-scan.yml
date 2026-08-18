@@ -59,7 +59,7 @@ jobs:
       # SonarQube Analysis (Optional)
       # ============================================================================
       - name: SonarQube Scan
-        if: ${{ secrets.SONAR_TOKEN != '' }}
+        if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -271,7 +271,7 @@ jobs:
       # Snyk Scan (Optional)
       # ============================================================================
       - name: Snyk Scan - Node.js
-        if: ${{ secrets.SNYK_TOKEN != '' }} && hashFiles('package.json') != ''
+        if: ${{ env.SNYK_TOKEN != '' && hashFiles('package.json') != '' }}
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -280,7 +280,7 @@ jobs:
         continue-on-error: true
 
       - name: Snyk Scan - Python
-        if: ${{ secrets.SNYK_TOKEN != '' }} && hashFiles('requirements.txt') != ''
+        if: ${{ env.SNYK_TOKEN != '' && hashFiles('requirements.txt') != '' }}
         uses: snyk/actions/python@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -289,7 +289,7 @@ jobs:
         continue-on-error: true
 
       - name: Snyk Monitor
-        if: ${{ secrets.SNYK_TOKEN != '' }}
+        if: ${{ env.SNYK_TOKEN != '' }}
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -660,8 +660,10 @@ jobs:
       # Send Slack Notification (Optional)
       # ============================================================================
       - name: Send Slack Notification
-        if: ${{ secrets.SECURITY_SLACK_WEBHOOK_URL != '' }}
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
         uses: slackapi/slack-github-action@v1.25.0
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
           payload: |
             {
@@ -710,7 +712,26 @@ jobs:
                 }
               ]
             }
-          env:
-            SLACK_WEBHOOK_URL: ${{ secrets.SECURITY_SLACK_WEBHOOK_URL }}
-            SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-        continue-on-error: true
+
+      - name: Send Email Notification
+        if: always() && env.NOTIFICATION_EMAIL != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Security Scan Report - ${{ github.repository }}"
+          body: |
+            The security scan for the repository *${{ github.repository }}* has completed.
+
+            Status: ${{ job.status }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+
+            You can view the full report in the Actions tab of the repository.
+
+            Regards,
+            Security Scan Workflow
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: ${{ secrets.EMAIL_USERNAME }}
