@@ -215,10 +215,8 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Set up kubectl
-        uses: aws-actions/eks-kubeconfig@v1
-        with:
-          cluster-name: ${{ secrets.EKS_CLUSTER_NAME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
 
       - name: Install Helm
         uses: azure/setup-helm@v3
@@ -456,10 +454,8 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Set up kubectl
-        uses: aws-actions/eks-kubeconfig@v1
-        with:
-          cluster-name: ${{ secrets.EKS_CLUSTER_NAME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
 
       - name: Rollback Backend
         run: |
