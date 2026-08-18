@@ -1,0 +1,60 @@
+@startuml
+' ============================================================================
+' User Registration Sequence Diagram - PlantUML
+' ============================================================================
+
+title User Registration Flow
+
+actor User
+participant "Mobile App" as MobileApp
+participant "API Gateway" as APIGateway
+participant "Auth Service" as AuthService
+participant "User Service" as UserService
+database "Database" as Database
+participant "Notification Service" as NotificationService
+participant "Email Service" as EmailService
+
+User -> MobileApp: Open App & Click Register
+MobileApp -> APIGateway: POST /auth/register
+
+note over APIGateway: Validate Request
+
+APIGateway -> AuthService: Register User
+AuthService -> AuthService: Validate Input Data
+
+alt Invalid Input
+    AuthService --> APIGateway: 400 Bad Request
+    APIGateway --> MobileApp: Validation Error
+    MobileApp --> User: Show Error
+else Valid Input
+    AuthService -> UserService: Create User
+    UserService -> Database: Check Email Exists
+    
+    alt Email Already Exists
+        Database --> UserService: User Exists
+        UserService --> AuthService: 409 Conflict
+        AuthService --> APIGateway: Email Already Registered
+        APIGateway --> MobileApp: Error
+        MobileApp --> User: Email Already Registered
+    else Email Available
+        UserService -> UserService: Hash Password
+        UserService -> Database: Save User
+        Database --> UserService: User Saved
+        
+        UserService --> AuthService: User Created
+        AuthService -> AuthService: Generate JWT Tokens
+        
+        AuthService --> APIGateway: 201 Created
+        APIGateway --> MobileApp: User Created + Tokens
+        
+        par Send Welcome Email
+            AuthService -> NotificationService: Send Welcome Email
+            NotificationService -> EmailService: Send Email
+            EmailService --> User: Welcome Email Sent
+        end
+        
+        MobileApp --> User: Registration Successful
+    end
+end
+
+@enduml

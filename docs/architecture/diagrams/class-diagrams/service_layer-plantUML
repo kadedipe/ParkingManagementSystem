@@ -1,0 +1,223 @@
+@startuml
+!define RECTANGLE class
+
+title Service Layer - Parking Management System
+
+' ============================================================================
+' Service Classes
+' ============================================================================
+class ParkingService {
+    -ParkingLotRepository parkingLotRepo
+    -ParkingSpotRepository parkingSpotRepo
+    -AvailabilityService availabilityService
+    -PricingService pricingService
+    -EventPublisher eventPublisher
+    -CacheManager cacheManager
+    +createParkingLot()
+    +updateParkingLot()
+    +deleteParkingLot()
+    +getParkingLot()
+    +getParkingLots()
+    +searchParkingLots()
+    +getNearbyParkingLots()
+    +getParkingAvailability()
+    +updateAvailability()
+    +calculatePricing()
+    +addReview()
+    +getReviews()
+    +getStatistics()
+    +handleAvailabilityUpdate()
+}
+
+class BookingService {
+    -BookingRepository bookingRepo
+    -ParkingService parkingService
+    -PaymentService paymentService
+    -NotificationService notificationService
+    -QRCodeGenerator qrCodeGenerator
+    -EventPublisher eventPublisher
+    +createBooking()
+    +updateBooking()
+    +cancelBooking()
+    +confirmBooking()
+    +extendBooking()
+    +checkIn()
+    +checkOut()
+    +getBooking()
+    +getBookings()
+    +getActiveBookings()
+    +getBookingHistory()
+    +validateBooking()
+    +calculatePrice()
+    +generateQRCode()
+    +handleBookingConfirmation()
+}
+
+class PaymentService {
+    -PaymentRepository paymentRepo
+    -PaymentMethodRepository paymentMethodRepo
+    -PaymentGateway paymentGateway
+    -BookingService bookingService
+    -NotificationService notificationService
+    -EventPublisher eventPublisher
+    +processPayment()
+    +refundPayment()
+    +getPayment()
+    +getPayments()
+    +addPaymentMethod()
+    +removePaymentMethod()
+    +setDefaultPaymentMethod()
+    +getPaymentMethods()
+    +getWalletBalance()
+    +addFundsToWallet()
+    +withdrawFromWallet()
+    +getWalletTransactions()
+    +generateReceipt()
+    +handlePaymentWebhook()
+}
+
+class UserService {
+    -UserRepository userRepo
+    -AuthService authService
+    -EventPublisher eventPublisher
+    -CacheManager cacheManager
+    +createUser()
+    +updateUser()
+    +deleteUser()
+    +getUser()
+    +getUsers()
+    +getUserProfile()
+    +updateProfile()
+    +changePassword()
+    +verifyEmail()
+    +enableTwoFactor()
+    +disableTwoFactor()
+    +getUserStats()
+    +getUserActivity()
+    +updatePreferences()
+    +handleUserRegistration()
+}
+
+class VehicleService {
+    -VehicleRepository vehicleRepo
+    -MakeRepository makeRepo
+    -ModelRepository modelRepo
+    -FeatureRepository featureRepo
+    -ImageRepository imageRepo
+    -CacheManager cacheManager
+    +createVehicle()
+    +updateVehicle()
+    +deleteVehicle()
+    +getVehicle()
+    +getVehicles()
+    +setDefaultVehicle()
+    +getMakes()
+    +getModels()
+    +getTypes()
+    +searchVehicles()
+    +validateVIN()
+    +addFeature()
+    +removeFeature()
+    +addImage()
+    +removeImage()
+    +getVehicleHistory()
+}
+
+class NotificationService {
+    -NotificationRepository notificationRepo
+    -TemplateRepository templateRepo
+    -DeviceRepository deviceRepo
+    -EmailProvider emailProvider
+    -PushProvider pushProvider
+    -SMSProvider smsProvider
+    -QueueManager queueManager
+    -EventPublisher eventPublisher
+    +sendNotification()
+    +getNotifications()
+    +markAsRead()
+    +markAllAsRead()
+    +deleteNotification()
+    +deleteAllNotifications()
+    +getTemplates()
+    +createTemplate()
+    +updateTemplate()
+    +deleteTemplate()
+    +registerDevice()
+    +unregisterDevice()
+    +updatePreferences()
+    +getPreferences()
+    +getDeliveryStatus()
+    +handleNotificationEvent()
+}
+
+class ChargingService {
+    -ChargingStationRepository stationRepo
+    -ChargingSessionRepository sessionRepo
+    -OCPPService ocppService
+    -PaymentService paymentService
+    -NotificationService notificationService
+    -EventPublisher eventPublisher
+    +createStation()
+    +updateStation()
+    +deleteStation()
+    +getStation()
+    +getStations()
+    +getNearbyStations()
+    +startCharging()
+    +stopCharging()
+    +pauseCharging()
+    +resumeCharging()
+    +getSession()
+    +getActiveSessions()
+    +getSessionHistory()
+    +calculateCost()
+    +updateSessionStatus()
+    +handleOCPPEvent()
+    +getStationAvailability()
+}
+
+class ReportService {
+    -ReportRepository reportRepo
+    -DataWarehouse dataWarehouse
+    -FileStorage fileStorage
+    -EmailService emailService
+    -EventPublisher eventPublisher
+    +generateReport()
+    +getReports()
+    +downloadReport()
+    +deleteReport()
+    +scheduleReport()
+    +getReportStatus()
+    +generateRevenueReport()
+    +generateOccupancyReport()
+    +generateBookingReport()
+    +generateUserReport()
+    +generateVehicleReport()
+    +generateChargingReport()
+    +generatePaymentReport()
+    +exportToPDF()
+    +exportToExcel()
+    +exportToCSV()
+}
+
+class AdminService {
+    -UserService userService
+    -ParkingService parkingService
+    -BookingService bookingService
+    -PaymentService paymentService
+    -ReportService reportService
+    -ConfigService configService
+    -AuditService auditService
+    +getDashboardStats()
+    +getSystemHealth()
+    +manageUsers()
+    +manageParkingLots()
+    +manageBookings()
+    +managePayments()
+    +manageReports()
+    +updateSystemConfig()
+    +getAuditLogs()
+    +handleSystemAlert()
+}
+
+@enduml

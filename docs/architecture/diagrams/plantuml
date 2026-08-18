@@ -1,0 +1,206 @@
+@startuml
+!define RECTANGLE class
+
+title Parking Management System - Architecture Diagram
+
+' ============================================================================
+' Client Layer
+' ============================================================================
+package "Client Layer" {
+    [Mobile App\nReact Native] as Mobile
+    [Web App\nReact/Next.js] as Web
+    [Admin Dashboard\nReact] as Admin
+    [3rd Party APIs] as ThirdParty
+}
+
+' ============================================================================
+' API Gateway Layer
+' ============================================================================
+package "API Gateway Layer" {
+    [DNS Management\nRoute53] as DNS
+    [CDN\nCloudFront] as CDN
+    [WAF/Shield] as WAF
+    [API Gateway\nNGINX/Kong] as APIGW
+    [Load Balancer\nHAProxy/ALB] as LB
+}
+
+' ============================================================================
+' Authentication Layer
+' ============================================================================
+package "Authentication Layer" {
+    [Auth Service\nJWT/OAuth2] as Auth
+    [Security\nWAF/Shield] as Security
+}
+
+' ============================================================================
+' Service Mesh
+' ============================================================================
+package "Service Mesh" {
+    package "Core Services" {
+        [Parking Service\nPython/FastAPI] as Parking
+        [Booking Service\nNode.js/NestJS] as Booking
+        [Payment Service\nPython/FastAPI] as Payment
+        [User Service\nNode.js/NestJS] as User
+        [Vehicle Service\nPython/FastAPI] as Vehicle
+        [Charging Service\nPython/FastAPI] as Charging
+        [Notification Service\nNode.js/NestJS] as Notification
+        [Report Service\nPython/FastAPI] as Report
+    }
+    
+    package "Shared Services" {
+        [Service Discovery\nConsul] as Discovery
+        [Message Queue\nRabbitMQ/Kafka] as Queue
+        [Cache Layer\nRedis Cluster] as Cache
+        [File Storage\nS3/MinIO] as Storage
+    }
+}
+
+' ============================================================================
+' Data Layer
+' ============================================================================
+package "Data Layer" {
+    database "PostgreSQL\nPrimary" as DB_Primary
+    database "PostgreSQL\nRead Replicas" as DB_Replica
+    database "Elasticsearch\nSearch/Logs" as ES
+    database "Data Warehouse\nRedshift/BigQuery" as DW
+    [ETL Pipeline\nGlue] as ETL
+}
+
+' ============================================================================
+' Monitoring & Observability
+' ============================================================================
+package "Monitoring & Observability" {
+    [Metrics\nPrometheus] as Prometheus
+    [Dashboards\nGrafana] as Grafana
+    [Log Collector\nLogstash] as Logstash
+    [Log Storage\nElasticsearch] as ES_Logs
+    [Visualization\nKibana] as Kibana
+    [Distributed Tracing\nJaeger] as Jaeger
+    [AWS CloudWatch] as CloudWatch
+}
+
+' ============================================================================
+' Connections
+' ============================================================================
+Mobile --> DNS
+Web --> DNS
+Admin --> DNS
+ThirdParty --> DNS
+
+DNS --> CDN
+CDN --> WAF
+WAF --> APIGW
+APIGW --> LB
+
+LB --> Auth
+LB --> Security
+
+LB --> Parking
+LB --> Booking
+LB --> Payment
+LB --> User
+LB --> Vehicle
+LB --> Charging
+LB --> Notification
+LB --> Report
+
+Parking --> Discovery
+Booking --> Discovery
+Payment --> Discovery
+User --> Discovery
+Vehicle --> Discovery
+Charging --> Discovery
+Notification --> Discovery
+Report --> Discovery
+
+Parking --> Queue
+Booking --> Queue
+Payment --> Queue
+User --> Queue
+Vehicle --> Queue
+Charging --> Queue
+Notification --> Queue
+Report --> Queue
+
+Parking --> Cache
+Booking --> Cache
+Payment --> Cache
+User --> Cache
+Vehicle --> Cache
+Charging --> Cache
+Notification --> Cache
+Report --> Cache
+
+Parking --> Storage
+Booking --> Storage
+Payment --> Storage
+User --> Storage
+Vehicle --> Storage
+Charging --> Storage
+Notification --> Storage
+Report --> Storage
+
+Parking --> DB_Primary
+Booking --> DB_Primary
+Payment --> DB_Primary
+User --> DB_Primary
+Vehicle --> DB_Primary
+Charging --> DB_Primary
+Notification --> DB_Primary
+Report --> DB_Primary
+
+Parking --> ES
+Booking --> ES
+Payment --> ES
+User --> ES
+Vehicle --> ES
+Charging --> ES
+Notification --> ES
+Report --> ES
+
+DB_Primary --> DB_Replica
+DB_Primary --> DW
+DB_Primary --> ETL
+
+Parking --> Prometheus
+Booking --> Prometheus
+Payment --> Prometheus
+User --> Prometheus
+Vehicle --> Prometheus
+Charging --> Prometheus
+Notification --> Prometheus
+Report --> Prometheus
+
+Prometheus --> Grafana
+
+Parking --> Logstash
+Booking --> Logstash
+Payment --> Logstash
+User --> Logstash
+Vehicle --> Logstash
+Charging --> Logstash
+Notification --> Logstash
+Report --> Logstash
+
+Logstash --> ES_Logs
+ES_Logs --> Kibana
+
+Parking --> Jaeger
+Booking --> Jaeger
+Payment --> Jaeger
+User --> Jaeger
+Vehicle --> Jaeger
+Charging --> Jaeger
+Notification --> Jaeger
+Report --> Jaeger
+
+Parking --> CloudWatch
+Booking --> CloudWatch
+Payment --> CloudWatch
+User --> CloudWatch
+Vehicle --> CloudWatch
+Charging --> CloudWatch
+Notification --> CloudWatch
+Report --> CloudWatch
+
+@enduml

@@ -1,0 +1,268 @@
+@startuml
+!define RECTANGLE class
+
+title Domain Model - Parking Management System
+
+' ============================================================================
+' Core Entities
+' ============================================================================
+class User {
+    -UUID id
+    -String name
+    -String email
+    -String phone
+    -String passwordHash
+    -UserRole role
+    -Boolean isVerified
+    -Boolean isTwoFactorEnabled
+    -Integer loyaltyPoints
+    -UserPreferences preferences
+    -DateTime createdAt
+    -DateTime updatedAt
+    +login()
+    +logout()
+    +updateProfile()
+    +changePassword()
+    +verifyEmail()
+    +enableTwoFactor()
+    +disableTwoFactor()
+    +getVehicles()
+    +getBookings()
+    +getLoyaltyPoints()
+}
+
+class Vehicle {
+    -UUID id
+    -UUID userId
+    -String name
+    -String plateNumber
+    -String vin
+    -String color
+    -Integer year
+    -VehicleMake make
+    -VehicleModel model
+    -VehicleType type
+    -Boolean isEV
+    -Float batteryCapacity
+    -String connectorType
+    -Integer maxChargingPower
+    -Integer mileage
+    -Boolean isDefault
+    -VehicleStatus status
+    -List~VehicleFeature~ features
+    -List~VehicleImage~ images
+    -DateTime createdAt
+    -DateTime updatedAt
+    +updateDetails()
+    +setDefault()
+    +addFeature()
+    +removeFeature()
+    +addImage()
+    +removeImage()
+    +validateVIN()
+}
+
+class ParkingLot {
+    -UUID id
+    -String name
+    -String description
+    -ParkingLotType type
+    -ParkingLotStatus status
+    -Address address
+    -Location location
+    -Integer totalSpots
+    -Integer availableSpots
+    -Integer reservedSpots
+    -Money basePricePerHour
+    -Money basePricePerDay
+    -Money basePricePerMonth
+    -List~String~ amenities
+    -List~String~ features
+    -OperatingHours operatingHours
+    -Contact contact
+    -Float rating
+    -Integer reviewCount
+    -List~Image~ images
+    -DateTime createdAt
+    -DateTime updatedAt
+    +updateAvailability()
+    +calculatePrice()
+    +getOccupancyRate()
+    +isOpen()
+    +addReview()
+    +updateRating()
+    +getSpots()
+}
+
+class ParkingSpot {
+    -UUID id
+    -UUID parkingLotId
+    -String number
+    -Integer level
+    -ParkingSpotType type
+    -ParkingSpotStatus status
+    -Float width
+    -Float length
+    -Float height
+    -Boolean isCovered
+    -Boolean isHandicap
+    -Boolean isEvCharging
+    -String connectorType
+    -Integer chargingPower
+    -Money chargingPrice
+    -UUID vehicleId
+    -String vehiclePlate
+    -DateTime reservedUntil
+    -DateTime occupiedSince
+    -DateTime createdAt
+    -DateTime updatedAt
+    +reserve()
+    +occupy()
+    +release()
+    +markMaintenance()
+    +isAvailable()
+    +isOccupied()
+    +isReserved()
+}
+
+class Booking {
+    -UUID id
+    -UUID parkingLotId
+    -UUID spotId
+    -UUID userId
+    -UUID vehicleId
+    -DateTime startTime
+    -DateTime endTime
+    -BookingStatus status
+    -Money amount
+    -PaymentStatus paymentStatus
+    -UUID paymentId
+    -String qrCode
+    -DateTime checkInTime
+    -DateTime checkOutTime
+    -Boolean isExtended
+    -Integer extensionCount
+    -String notes
+    -DateTime createdAt
+    -DateTime updatedAt
+    +confirm()
+    +cancel()
+    +checkIn()
+    +checkOut()
+    +extend()
+    +generateQRCode()
+    +calculateDuration()
+    +isActive()
+    +canCancel()
+    +canExtend()
+}
+
+class Payment {
+    -UUID id
+    -UUID userId
+    -UUID bookingId
+    -Money amount
+    -PaymentMethod paymentMethod
+    -PaymentStatus status
+    -String description
+    -String receiptUrl
+    -String providerTransactionId
+    -JSON providerData
+    -DateTime createdAt
+    -DateTime updatedAt
+    +process()
+    +refund()
+    +getReceipt()
+    +isCompleted()
+    +isRefunded()
+    +generateReceipt()
+}
+
+class ChargingStation {
+    -UUID id
+    -String name
+    -String address
+    -Location location
+    -ChargingPowerLevel powerLevel
+    -ChargingStatus status
+    -Money pricePerKwh
+    -Float rating
+    -Integer reviewCount
+    -List~String~ amenities
+    -List~Image~ images
+    -OCPPConfig ocppConfig
+    -DateTime createdAt
+    -DateTime updatedAt
+    +getAvailability()
+    +updateStatus()
+    +calculatePrice()
+    +isAvailable()
+    +getConnectors()
+}
+
+class ChargingSession {
+    -UUID id
+    -UUID stationId
+    -UUID connectorId
+    -UUID userId
+    -UUID vehicleId
+    -DateTime startTime
+    -DateTime endTime
+    -ChargingStatus status
+    -Float energyUsed
+    -Money cost
+    -Float meterStart
+    -Float meterStop
+    -DateTime createdAt
+    -DateTime updatedAt
+    +start()
+    +stop()
+    +pause()
+    +resume()
+    +calculateCost()
+    +getDuration()
+    +isActive()
+    +isComplete()
+}
+
+class Notification {
+    -UUID id
+    -UUID userId
+    -NotificationType type
+    -String title
+    -String message
+    -JSON data
+    -List~String~ channels
+    -NotificationPriority priority
+    -NotificationStatus status
+    -Boolean isRead
+    -DateTime readAt
+    -DateTime sentAt
+    -DateTime createdAt
+    +markAsRead()
+    +send()
+    +getDeliveryStatus()
+    +isDelivered()
+}
+
+' ============================================================================
+' Relationships
+' ============================================================================
+User "1" --> "*" Vehicle : owns
+User "1" --> "*" Booking : makes
+User "1" --> "*" Payment : makes
+User "1" --> "*" Notification : receives
+User "1" --> "*" ChargingSession : initiates
+
+ParkingLot "1" --> "*" ParkingSpot : contains
+ParkingLot "1" --> "*" Booking : has
+
+ParkingSpot "1" --> "0..1" Booking : assigned to
+
+Booking "1" --> "0..1" Payment : has
+
+ChargingStation "1" --> "*" ChargingSession : hosts
+
+Vehicle "1" --> "*" ChargingSession : used in
+
+@enduml
