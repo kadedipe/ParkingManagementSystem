@@ -1,0 +1,37 @@
+# ============================================================================
+# Environment Configuration - Environment-specific Settings
+# ============================================================================
+
+# parking-management-system/.github/environments/production.yml
+
+name: Production
+description: Production environment
+
+# Environment variables
+env:
+  KUBE_NAMESPACE: parking-system
+  DEPLOYMENT_STRATEGY: rolling
+  REPLICAS: 5
+  CPU_LIMIT: 500m
+  MEMORY_LIMIT: 512Mi
+  AUTO_SCALING_ENABLED: true
+  MIN_REPLICAS: 3
+  MAX_REPLICAS: 10
+
+# Protection rules
+protection_rules:
+  - type: required_approvals
+    approvers:
+      - admin
+      - team-lead
+    min_approvals: 2
+  - type: required_status_checks
+    checks:
+      - validate
+      - build
+      - smoke-tests
+
+# Deployment slots
+slots:
+  - blue
+  - green

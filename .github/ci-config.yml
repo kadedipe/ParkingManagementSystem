@@ -1,0 +1,54 @@
+# ============================================================================
+# CI Configuration - Custom CI Settings
+# ============================================================================
+
+# parking-management-system/.github/ci-config.yml
+
+ci:
+  # General settings
+  timeout: 60
+  retry: 2
+  
+  # Test settings
+  tests:
+    unit:
+      enabled: true
+      coverage: 80
+      parallel: true
+    
+    integration:
+      enabled: true
+      coverage: 70
+      database: true
+      redis: true
+    
+    e2e:
+      enabled: true
+      browsers:
+        - chrome
+        - firefox
+    
+    performance:
+      enabled: true
+      load: 100
+      duration: 60
+
+  # Security settings
+  security:
+    snyk: true
+    trivy: true
+    dependency_check: true
+    npm_audit: true
+
+  # Build settings
+  build:
+    docker: true
+    artifacts: true
+    cache: true
+
+  # Notifications
+  notifications:
+    slack: true
+    email: true
+    on_failure: true
+    on_success: true
