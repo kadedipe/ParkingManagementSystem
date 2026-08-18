@@ -1,0 +1,84 @@
+# ============================================================================
+# Docker Compose - Notification Service Integration
+# ============================================================================
+
+# parking-management-system/services/notification-service/docker-compose.yml
+
+version: '3.8'
+
+services:
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notification-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - SERVICE_NAME=notification-service
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=notification_db
+      - DB_USER=notification_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - EMAIL_FROM=noreply@parkingapp.com
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - EXPONENT_TOKEN=${EXPONENT_TOKEN}
+      - CORS_ORIGIN=*
+      - RUN_MIGRATIONS=true
+    volumes:
+      - ./logs:/app/logs
+      - ./templates:/app/templates
+    ports:
+      - "3005:3005"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: notification-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=notification_db
+      - POSTGRES_USER=notification_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - notification-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    networks:
+      - parking-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: notification-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - notification-redis-data:/data
+    ports:
+      - "6382:6379"
+    networks:
+      - parking-network
+
+volumes:
+  notification-postgres-data:
+  notification-redis-data:
+
+networks:
+  parking-network:
+    driver: bridge

@@ -1,0 +1,23 @@
+{
+  "name": "Downtown Parking Garage",
+  "description": "Multi-level parking garage in downtown area",
+  "address": {
+    "street": "456 Commerce St",
+    "city": "New York",
+    "state": "NY",
+    "zip": "10001",
+    "country": "USA"
+  },
+  "location": {
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  },
+  "total_spots": 200,
+  "price_per_hour": 8.50,
+  "type": "multi_level",
+  "amenities": ["EV Charging", "Security Cameras", "Lighting"],
+  "features": ["24/7 Access", "Handicap Accessible"],
+  "phone": "+1-555-123-4567",
+  "email": "info@downtownparking.com",
+  "website": "https://downtownparking.com"
+}
