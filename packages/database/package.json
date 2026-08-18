@@ -1,0 +1,43 @@
+{
+  "name": "@parking/database",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Parking Management System - Database Configuration & Models",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client.js",
+      "types": "./dist/client.d.ts"
+    },
+    "./models": {
+      "import": "./dist/models/index.js",
+      "types": "./dist/models/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "db:seed": "tsx src/seed.ts",
+    "db:reset": "prisma migrate reset --force",
+    "db:push": "prisma db push",
+    "clean": "rm -rf dist node_modules/.cache"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "prisma": "^5.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "tsx": "^3.14.0",
+    "typescript": "^5.2.2"
+  }
+}
