@@ -1,0 +1,1261 @@
+# ============================================================================
+# OpenAPI Specification - Parking Management System API
+# ============================================================================
+
+# parking-management-system/docs/api/openapi.yaml
+
+openapi: 3.0.3
+info:
+  title: Parking Management System API
+  description: |
+    Comprehensive API for the Parking Management System.
+    
+    ## Features
+    - User Management
+    - Vehicle Management
+    - Parking Lot Management
+    - Booking System
+    - Payment Processing
+    - EV Charging
+    - Real-time Notifications
+    - Reporting & Analytics
+    
+    ## Authentication
+    This API uses JWT Bearer tokens for authentication.
+    Include the token in the `Authorization` header.
+    
+    ## Rate Limiting
+    - Standard endpoints: 100 requests per minute
+    - Auth endpoints: 20 requests per minute
+    - Admin endpoints: 200 requests per minute
+  version: 2.0.0
+  contact:
+    name: API Support
+    email: support@parkingapp.com
+    url: https://parkingapp.com/support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.parkingapp.com/v1
+    description: Production Server
+  - url: https://staging-api.parkingapp.com/v1
+    description: Staging Server
+  - url: http://localhost:3000/v1
+    description: Development Server
+
+tags:
+  - name: Authentication
+    description: Authentication and authorization endpoints
+  - name: Users
+    description: User management endpoints
+  - name: Vehicles
+    description: Vehicle management endpoints
+  - name: Parking
+    description: Parking lot and spot management
+  - name: Bookings
+    description: Booking management endpoints
+  - name: Payments
+    description: Payment processing endpoints
+  - name: Charging
+    description: EV charging endpoints
+  - name: Notifications
+    description: Notification management endpoints
+  - name: Reports
+    description: Report generation endpoints
+  - name: Admin
+    description: Administrative endpoints
+
+# ============================================================================
+# Security Definitions
+# ============================================================================
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token authentication
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API Key for service-to-service authentication
+
+# ============================================================================
+# Common Schemas
+# ============================================================================
+
+schemas:
+  # ==========================================================================
+  # Error Responses
+  # ==========================================================================
+  Error:
+    type: object
+    properties:
+      success:
+        type: boolean
+        example: false
+      error:
+        type: object
+        properties:
+          code:
+            type: string
+            example: "VALIDATION_ERROR"
+          message:
+            type: string
+            example: "Invalid input data"
+          details:
+            type: object
+            additionalProperties: true
+      timestamp:
+        type: string
+        format: date-time
+        example: "2024-01-15T10:30:00Z"
+
+  ValidationError:
+    type: object
+    properties:
+      success:
+        type: boolean
+        example: false
+      error:
+        type: object
+        properties:
+          code:
+            type: string
+            example: "VALIDATION_ERROR"
+          message:
+            type: string
+            example: "Validation failed"
+          errors:
+            type: array
+            items:
+              type: object
+              properties:
+                field:
+                  type: string
+                  example: "email"
+                message:
+                  type: string
+                  example: "Invalid email format"
+
+  # ==========================================================================
+  # Pagination
+  # ==========================================================================
+  Pagination:
+    type: object
+    properties:
+      page:
+        type: integer
+        minimum: 1
+        example: 1
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 100
+        example: 10
+      total:
+        type: integer
+        example: 100
+      totalPages:
+        type: integer
+        example: 10
+      hasNext:
+        type: boolean
+        example: true
+      hasPrevious:
+        type: boolean
+        example: false
+
+  # ==========================================================================
+  # User Schemas
+  # ==========================================================================
+  User:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+        example: "123e4567-e89b-12d3-a456-426614174000"
+      name:
+        type: string
+        example: "John Doe"
+      email:
+        type: string
+        format: email
+        example: "john@example.com"
+      phone:
+        type: string
+        example: "+1234567890"
+      avatar:
+        type: string
+        format: uri
+        example: "https://s3.amazonaws.com/bucket/avatar.jpg"
+      role:
+        type: string
+        enum: [user, admin, manager]
+        example: "user"
+      isVerified:
+        type: boolean
+        example: true
+      isTwoFactorEnabled:
+        type: boolean
+        example: false
+      loyaltyPoints:
+        type: integer
+        example: 450
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  CreateUserRequest:
+    type: object
+    required:
+      - name
+      - email
+      - password
+    properties:
+      name:
+        type: string
+        minLength: 2
+        maxLength: 100
+        example: "John Doe"
+      email:
+        type: string
+        format: email
+        example: "john@example.com"
+      phone:
+        type: string
+        example: "+1234567890"
+      password:
+        type: string
+        minLength: 8
+        format: password
+        example: "SecurePassword123!"
+
+  UpdateUserRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        minLength: 2
+        maxLength: 100
+      email:
+        type: string
+        format: email
+      phone:
+        type: string
+      avatar:
+        type: string
+        format: uri
+      preferences:
+        type: object
+        properties:
+          theme:
+            type: string
+            enum: [light, dark]
+          language:
+            type: string
+            enum: [en, es, fr, de]
+
+  # ==========================================================================
+  # Auth Schemas
+  # ==========================================================================
+  LoginRequest:
+    type: object
+    required:
+      - email
+      - password
+    properties:
+      email:
+        type: string
+        format: email
+        example: "john@example.com"
+      password:
+        type: string
+        format: password
+        example: "SecurePassword123!"
+
+  LoginResponse:
+    type: object
+    properties:
+      success:
+        type: boolean
+        example: true
+      data:
+        type: object
+        properties:
+          user:
+            $ref: '#/components/schemas/User'
+          tokens:
+            type: object
+            properties:
+              accessToken:
+                type: string
+                example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              refreshToken:
+                type: string
+                example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              expiresIn:
+                type: integer
+                example: 3600
+
+  RegisterRequest:
+    type: object
+    required:
+      - name
+      - email
+      - password
+    properties:
+      name:
+        type: string
+        minLength: 2
+        maxLength: 100
+      email:
+        type: string
+        format: email
+      phone:
+        type: string
+      password:
+        type: string
+        minLength: 8
+        format: password
+
+  RefreshTokenRequest:
+    type: object
+    required:
+      - refreshToken
+    properties:
+      refreshToken:
+        type: string
+
+  ForgotPasswordRequest:
+    type: object
+    required:
+      - email
+    properties:
+      email:
+        type: string
+        format: email
+
+  ResetPasswordRequest:
+    type: object
+    required:
+      - token
+      - newPassword
+    properties:
+      token:
+        type: string
+      newPassword:
+        type: string
+        minLength: 8
+        format: password
+
+  ChangePasswordRequest:
+    type: object
+    required:
+      - currentPassword
+      - newPassword
+    properties:
+      currentPassword:
+        type: string
+        format: password
+      newPassword:
+        type: string
+        minLength: 8
+        format: password
+
+  # ==========================================================================
+  # Vehicle Schemas
+  # ==========================================================================
+  Vehicle:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      plateNumber:
+        type: string
+      vin:
+        type: string
+      color:
+        type: string
+      year:
+        type: integer
+      make:
+        type: object
+        properties:
+          id:
+            type: string
+          name:
+            type: string
+      model:
+        type: object
+        properties:
+          id:
+            type: string
+          name:
+            type: string
+      type:
+        type: object
+        properties:
+          id:
+            type: string
+          name:
+            type: string
+      isEV:
+        type: boolean
+      batteryCapacity:
+        type: number
+      connectorType:
+        type: string
+      maxChargingPower:
+        type: integer
+      mileage:
+        type: integer
+      isDefault:
+        type: boolean
+      status:
+        type: string
+        enum: [active, inactive, deleted]
+      features:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            value:
+              type: string
+      images:
+        type: array
+        items:
+          type: object
+          properties:
+            url:
+              type: string
+            isPrimary:
+              type: boolean
+            order:
+              type: integer
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  CreateVehicleRequest:
+    type: object
+    required:
+      - name
+      - plateNumber
+      - makeId
+      - modelId
+      - typeId
+    properties:
+      name:
+        type: string
+      plateNumber:
+        type: string
+      vin:
+        type: string
+      color:
+        type: string
+      year:
+        type: integer
+      makeId:
+        type: string
+        format: uuid
+      modelId:
+        type: string
+        format: uuid
+      typeId:
+        type: string
+        format: uuid
+      isEV:
+        type: boolean
+      batteryCapacity:
+        type: number
+      connectorType:
+        type: string
+      maxChargingPower:
+        type: integer
+      mileage:
+        type: integer
+      features:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            value:
+              type: string
+      images:
+        type: array
+        items:
+          type: object
+          properties:
+            url:
+              type: string
+            isPrimary:
+              type: boolean
+            order:
+              type: integer
+
+  # ==========================================================================
+  # Parking Schemas
+  # ==========================================================================
+  ParkingLot:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      description:
+        type: string
+      type:
+        type: string
+        enum: [standard, premium, valet, ev_charging, multi_level]
+      status:
+        type: string
+        enum: [active, inactive, maintenance, closed]
+      address:
+        type: object
+        properties:
+          street:
+            type: string
+          city:
+            type: string
+          state:
+            type: string
+          country:
+            type: string
+          postalCode:
+            type: string
+          formatted:
+            type: string
+      location:
+        type: object
+        properties:
+          latitude:
+            type: number
+          longitude:
+            type: number
+      totalSpots:
+        type: integer
+      availableSpots:
+        type: integer
+      reservedSpots:
+        type: integer
+      basePricePerHour:
+        type: object
+        properties:
+          amount:
+            type: number
+          currency:
+            type: string
+      basePricePerDay:
+        type: object
+        properties:
+          amount:
+            type: number
+          currency:
+            type: string
+      basePricePerMonth:
+        type: object
+        properties:
+          amount:
+            type: number
+          currency:
+            type: string
+      amenities:
+        type: array
+        items:
+          type: string
+      features:
+        type: array
+        items:
+          type: string
+      operatingHours:
+        type: object
+        properties:
+          monday:
+            type: object
+            properties:
+              open:
+                type: string
+                example: "06:00"
+              close:
+                type: string
+                example: "22:00"
+          tuesday:
+            $ref: '#/components/schemas/DayHours'
+          wednesday:
+            $ref: '#/components/schemas/DayHours'
+          thursday:
+            $ref: '#/components/schemas/DayHours'
+          friday:
+            $ref: '#/components/schemas/DayHours'
+          saturday:
+            $ref: '#/components/schemas/DayHours'
+          sunday:
+            $ref: '#/components/schemas/DayHours'
+      rating:
+        type: number
+        minimum: 0
+        maximum: 5
+      reviewCount:
+        type: integer
+      images:
+        type: array
+        items:
+          type: object
+          properties:
+            url:
+              type: string
+            isPrimary:
+              type: boolean
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  DayHours:
+    type: object
+    properties:
+      open:
+        type: string
+        example: "06:00"
+      close:
+        type: string
+        example: "22:00"
+      isOpen:
+        type: boolean
+        example: true
+
+  ParkingSpot:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      parkingLotId:
+        type: string
+        format: uuid
+      number:
+        type: string
+      level:
+        type: integer
+      type:
+        type: string
+        enum: [standard, compact, handicap, ev_charging, premium, valet, motorcycle, large]
+      status:
+        type: string
+        enum: [available, occupied, reserved, maintenance, out_of_service]
+      width:
+        type: number
+      length:
+        type: number
+      height:
+        type: number
+      isCovered:
+        type: boolean
+      isHandicap:
+        type: boolean
+      isEvCharging:
+        type: boolean
+      connectorType:
+        type: string
+      chargingPower:
+        type: integer
+      chargingPrice:
+        type: object
+        properties:
+          amount:
+            type: number
+          currency:
+            type: string
+      vehicleId:
+        type: string
+        format: uuid
+      vehiclePlate:
+        type: string
+      reservedUntil:
+        type: string
+        format: date-time
+      occupiedSince:
+        type: string
+        format: date-time
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  ParkingAvailability:
+    type: object
+    properties:
+      parkingLotId:
+        type: string
+        format: uuid
+      totalSpots:
+        type: integer
+      availableSpots:
+        type: integer
+      reservedSpots:
+        type: integer
+      occupiedSpots:
+        type: integer
+      occupancyRate:
+        type: number
+      isFull:
+        type: boolean
+      isAlmostFull:
+        type: boolean
+      hasAvailability:
+        type: boolean
+      spots:
+        type: array
+        items:
+          $ref: '#/components/schemas/ParkingSpot'
+      lastUpdated:
+        type: string
+        format: date-time
+
+  # ==========================================================================
+  # Booking Schemas
+  # ==========================================================================
+  Booking:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      parkingLotId:
+        type: string
+        format: uuid
+      parkingLotName:
+        type: string
+      spotId:
+        type: string
+        format: uuid
+      spotNumber:
+        type: string
+      userId:
+        type: string
+        format: uuid
+      vehicleId:
+        type: string
+        format: uuid
+      vehiclePlate:
+        type: string
+      startTime:
+        type: string
+        format: date-time
+      endTime:
+        type: string
+        format: date-time
+      status:
+        type: string
+        enum: [pending, confirmed, active, completed, cancelled, no_show]
+      amount:
+        type: object
+        properties:
+          amount:
+            type: number
+          currency:
+            type: string
+      paymentStatus:
+        type: string
+        enum: [pending, paid, refunded, failed]
+      paymentId:
+        type: string
+        format: uuid
+      qrCode:
+        type: string
+      checkInTime:
+        type: string
+        format: date-time
+      checkOutTime:
+        type: string
+        format: date-time
+      isExtended:
+        type: boolean
+      extensionCount:
+        type: integer
+      notes:
+        type: string
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  CreateBookingRequest:
+    type: object
+    required:
+      - parkingLotId
+      - spotId
+      - startTime
+      - endTime
+      - vehicleId
+    properties:
+      parkingLotId:
+        type: string
+        format: uuid
+      spotId:
+        type: string
+        format: uuid
+      startTime:
+        type: string
+        format: date-time
+      endTime:
+        type: string
+        format: date-time
+      vehicleId:
+        type: string
+        format: uuid
+      notes:
+        type: string
+
+  ExtendBookingRequest:
+    type: object
+    required:
+      - additionalHours
+    properties:
+      additionalHours:
+        type: integer
+        minimum: 1
+
+  CancelBookingRequest:
+    type: object
+    properties:
+      reason:
+        type: string
+
+  # ==========================================================================
+  # Payment Schemas
+  # ==========================================================================
+  Payment:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      amount:
+        type: object
+        properties:
+          amount:
+            type: number
+          currency:
+            type: string
+      method:
+        type: object
+        properties:
+          id:
+            type: string
+          type:
+            type: string
+            enum: [card, paypal, apple_pay, google_pay, bank]
+          last4:
+            type: string
+      bookingId:
+        type: string
+        format: uuid
+      status:
+        type: string
+        enum: [pending, processing, completed, failed, refunded]
+      description:
+        type: string
+      receiptUrl:
+        type: string
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  PaymentMethod:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      type:
+        type: string
+        enum: [card, paypal, apple_pay, google_pay, bank]
+      cardType:
+        type: string
+        enum: [visa, mastercard, amex, discover]
+      last4:
+        type: string
+      expiryMonth:
+        type: integer
+      expiryYear:
+        type: integer
+      holderName:
+        type: string
+      isDefault:
+        type: boolean
+      createdAt:
+        type: string
+        format: date-time
+
+  CreatePaymentMethodRequest:
+    type: object
+    required:
+      - type
+    properties:
+      type:
+        type: string
+        enum: [card, paypal, apple_pay, google_pay, bank]
+      cardNumber:
+        type: string
+      expiryMonth:
+        type: integer
+      expiryYear:
+        type: integer
+      cvv:
+        type: string
+      holderName:
+        type: string
+      isDefault:
+        type: boolean
+
+  ProcessPaymentRequest:
+    type: object
+    required:
+      - amount
+      - paymentMethodId
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+        default: USD
+      paymentMethodId:
+        type: string
+        format: uuid
+      bookingId:
+        type: string
+        format: uuid
+      description:
+        type: string
+
+  # ==========================================================================
+  # Charging Schemas
+  # ==========================================================================
+  ChargingStation:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      address:
+        type: string
+      location:
+        type: object
+        properties:
+          latitude:
+            type: number
+          longitude:
+            type: number
+      connectors:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            type:
+              type: string
+              enum: [type1, type2, ccs, chademo, tesla]
+            power:
+              type: integer
+            status:
+              type: string
+              enum: [available, occupied, reserved, maintenance]
+            estimatedTime:
+              type: string
+      powerLevel:
+        type: string
+        enum: [standard, fast, rapid]
+      status:
+        type: string
+        enum: [available, occupied, reserved, maintenance]
+      pricePerKwh:
+        type: object
+        properties:
+          amount:
+            type: number
+          currency:
+            type: string
+      rating:
+        type: number
+      reviewCount:
+        type: integer
+      amenities:
+        type: array
+        items:
+          type: string
+      images:
+        type: array
+        items:
+          type: string
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  ChargingSession:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      stationId:
+        type: string
+        format: uuid
+      stationName:
+        type: string
+      connectorId:
+        type: string
+        format: uuid
+      connectorType:
+        type: string
+      vehicleId:
+        type: string
+        format: uuid
+      startTime:
+        type: string
+        format: date-time
+      endTime:
+        type: string
+        format: date-time
+      duration:
+        type: string
+      energyUsed:
+        type: number
+      cost:
+        type: object
+        properties:
+          amount:
+            type: number
+          currency:
+            type: string
+      status:
+        type: string
+        enum: [active, paused, completed, cancelled]
+      batteryPercentage:
+        type: integer
+      estimatedCompletion:
+        type: string
+        format: date-time
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  StartChargingRequest:
+    type: object
+    required:
+      - stationId
+      - connectorId
+      - vehicleId
+    properties:
+      stationId:
+        type: string
+        format: uuid
+      connectorId:
+        type: string
+        format: uuid
+      vehicleId:
+        type: string
+        format: uuid
+
+  # ==========================================================================
+  # Notification Schemas
+  # ==========================================================================
+  Notification:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      userId:
+        type: string
+        format: uuid
+      type:
+        type: string
+        enum: [booking, payment, parking, charging, system, promotion, reminder]
+      title:
+        type: string
+      message:
+        type: string
+      data:
+        type: object
+      channels:
+        type: array
+        items:
+          type: string
+          enum: [email, push, sms]
+      priority:
+        type: string
+        enum: [high, normal, low]
+      status:
+        type: string
+        enum: [pending, sent, delivered, read, failed]
+      isRead:
+        type: boolean
+      readAt:
+        type: string
+        format: date-time
+      sentAt:
+        type: string
+        format: date-time
+      createdAt:
+        type: string
+        format: date-time
+
+  NotificationPreferences:
+    type: object
+    properties:
+      email:
+        type: boolean
+      push:
+        type: boolean
+      sms:
+        type: boolean
+      bookingUpdates:
+        type: boolean
+      paymentUpdates:
+        type: boolean
+      parkingAlerts:
+        type: boolean
+      chargingUpdates:
+        type: boolean
+      promotions:
+        type: boolean
+      systemUpdates:
+        type: boolean
+
+  SendNotificationRequest:
+    type: object
+    required:
+      - userId
+      - type
+      - title
+      - message
+    properties:
+      userId:
+        type: string
+        format: uuid
+      type:
+        type: string
+        enum: [booking, payment, parking, charging, system, promotion, reminder]
+      title:
+        type: string
+      message:
+        type: string
+      data:
+        type: object
+      channels:
+        type: array
+        items:
+          type: string
+          enum: [email, push, sms]
+      priority:
+        type: string
+        enum: [high, normal, low]
+
+  # ==========================================================================
+  # Report Schemas
+  # ==========================================================================
+  Report:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      type:
+        type: string
+        enum: [revenue, occupancy, booking, user, vehicle, charging, payment]
+      name:
+        type: string
+      dateRange:
+        type: object
+        properties:
+          start:
+            type: string
+            format: date-time
+          end:
+            type: string
+            format: date-time
+      status:
+        type: string
+        enum: [generating, ready, failed]
+      fileUrl:
+        type: string
+      fileSize:
+        type: integer
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+
+  GenerateReportRequest:
+    type: object
+    required:
+      - type
+      - dateRange
+    properties:
+      type:
+        type: string
+        enum: [revenue, occupancy, booking, user, vehicle, charging, payment]
+      dateRange:
+        type: object
+        required:
+          - start
+          - end
+        properties:
+          start:
+            type: string
+            format: date-time
+          end:
+            type: string
+            format: date-time
+      format:
+        type: string
+        enum: [pdf, excel, csv]
+        default: pdf
+      filters:
+        type: object
