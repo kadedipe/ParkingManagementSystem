@@ -1,0 +1,87 @@
+# ============================================================================
+# Kubernetes Ingress - Ingress Configuration
+# ============================================================================
+
+# parking-management-system/infra/kubernetes/ingress.yaml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: parking-ingress
+  namespace: parking-system
+  labels:
+    app: parking-ingress
+    environment: production
+  annotations:
+    # Nginx Ingress Controller annotations
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "8k"
+    nginx.ingress.kubernetes.io/upstream-keepalive-connections: "32"
+    
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    nginx.ingress.kubernetes.io/limit-whitelist: "192.168.0.0/16,10.0.0.0/8,172.16.0.0/12"
+    
+    # Security annotations
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+    
+    # CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://parkingapp.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    
+    # Websocket support
+    nginx.ingress.kubernetes.io/websocket-services: "parking-backend-service"
+    
+    # Cert-manager annotations
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/issue-temporary-certificate: "true"
+    cert-manager.io/acme-challenge-type: "http01"
+
+spec:
+  tls:
+  - hosts:
+    - parkingapp.com
+    - www.parkingapp.com
+    - api.parkingapp.com
+    secretName: parking-tls-secret
+  rules:
+  - host: parkingapp.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: parking-frontend-service
+            port:
+              number: 80
+  - host: api.parkingapp.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: parking-backend-service
+            port:
+              number: 3000
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: parking-backend-service
+            port:
+              number: 3000

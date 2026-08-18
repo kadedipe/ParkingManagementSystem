@@ -1,0 +1,13 @@
+# ============================================================================
+# Hosts File Entries - Development Domain Resolution
+# ============================================================================
+
+# parking-management-system/infra/nginx/hosts.dev
+
+# Add these entries to your /etc/hosts file for development
+# Windows: C:\Windows\System32\drivers\etc\hosts
+# Linux/Mac: /etc/hosts
+
+127.0.0.1 localhost dev.parkingapp.com api.dev.parkingapp.com
+127.0.0.1 parkingapp.com www.parkingapp.com
+::1 localhost dev.parkingapp.com

@@ -1,0 +1,104 @@
+# ============================================================================
+# Kubernetes ConfigMap - Configuration Management
+# ============================================================================
+
+# parking-management-system/infra/kubernetes/configmap.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: parking-config
+  namespace: parking-system
+  labels:
+    app: parking
+    environment: production
+data:
+  # Application configuration
+  app.config.json: |
+    {
+      "appName": "Parking Management System",
+      "version": "2.0.0",
+      "environment": "production",
+      "api": {
+        "timeout": 30000,
+        "retryAttempts": 3,
+        "retryDelay": 1000
+      },
+      "features": {
+        "enableBiometric": true,
+        "enableSocialLogin": true,
+        "enableTwoFactor": true,
+        "enableDarkMode": true,
+        "enablePushNotifications": true,
+        "enableOfflineMode": true
+      },
+      "limits": {
+        "maxBookingsPerDay": 10,
+        "maxVehicles": 5,
+        "maxSearchRadius": 50,
+        "maxImageSize": 5,
+        "maxImages": 5
+      },
+      "defaults": {
+        "theme": "light",
+        "language": "en",
+        "currency": "USD",
+        "distanceUnit": "km",
+        "timezone": "America/New_York"
+      }
+    }
+  
+  # Nginx configuration
+  nginx.conf: |
+    server {
+      listen 80;
+      server_name parkingapp.com;
+      return 301 https://$server_name$request_uri;
+    }
+    server {
+      listen 443 ssl http2;
+      server_name parkingapp.com;
+      
+      ssl_certificate /etc/nginx/ssl/tls.crt;
+      ssl_certificate_key /etc/nginx/ssl/tls.key;
+      
+      location / {
+        proxy_pass http://parking-frontend-service;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+      
+      location /api/ {
+        proxy_pass http://parking-backend-service:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+      
+      location /ws/ {
+        proxy_pass http://parking-backend-service:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+    }
+
+  # Logging configuration
+  logging.config.json: |
+    {
+      "level": "info",
+      "format": "json",
+      "output": ["console", "file"],
+      "file": {
+        "path": "/var/log/app",
+        "maxSize": "100m",
+        "maxFiles": 7
+      }
+    }

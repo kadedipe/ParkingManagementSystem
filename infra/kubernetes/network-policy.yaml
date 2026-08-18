@@ -1,0 +1,110 @@
+# ============================================================================
+# Kubernetes NetworkPolicy - Network Security Policies
+# ============================================================================
+
+# parking-management-system/infra/kubernetes/network-policy.yaml
+
+---
+# Backend Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-network-policy
+  namespace: parking-system
+  labels:
+    app: parking-backend
+    environment: production
+spec:
+  podSelector:
+    matchLabels:
+      app: parking-backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: parking-nginx
+    - podSelector:
+        matchLabels:
+          app: parking-frontend
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Database Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-network-policy
+  namespace: parking-system
+  labels:
+    app: postgres
+    environment: production
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: parking-backend
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+# Redis Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-network-policy
+  namespace: parking-system
+  labels:
+    app: redis
+    environment: production
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: parking-backend
+    - podSelector:
+        matchLabels:
+          app: parking-worker
+    ports:
+    - protocol: TCP
+      port: 6379

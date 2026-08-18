@@ -1,0 +1,19 @@
+# ============================================================================
+# Kubernetes PDB - Pod Disruption Budget
+# ============================================================================
+
+# parking-management-system/infra/kubernetes/pdb.yaml
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: parking-backend-pdb
+  namespace: parking-system
+  labels:
+    app: parking-backend
+    environment: production
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: parking-backend
