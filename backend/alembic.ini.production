@@ -1,0 +1,60 @@
+# ============================================================================
+# Production Environment Configuration
+# ============================================================================
+
+[Alembic]
+script_location = alembic
+file_template = %%(year)d_%%(month).2d_%%(day).2d_%%(hour).2d_%%(minute).2d_%%(second).2d_%%(slug)s
+timezone = UTC
+truncate_slug_length = 40
+revision_environment = false
+production = true
+
+# Production database URL (must be overridden via environment variable)
+sqlalchemy.url = postgresql://user:password@production-db:5432/parking_db
+
+pool_size = 10
+max_overflow = 20
+pool_timeout = 60
+pool_recycle = 3600
+
+sqlalchemy.echo = false
+sqlalchemy.echo_pool = false
+sqlalchemy.pool_pre_ping = true
+
+version_table = alembic_version
+version_table_schema = 
+
+[loggers]
+keys = root,sqlalchemy,alembic
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = WARN
+handlers = console
+qualname =
+
+[logger_sqlalchemy]
+level = WARN
+handlers =
+qualname = sqlalchemy.engine
+
+[logger_alembic]
+level = WARN
+handlers =
+qualname = alembic
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %(levelname)-5.5s [%(name)s] %(message)s
+datefmt = %H:%M:%S

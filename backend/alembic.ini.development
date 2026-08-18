@@ -1,0 +1,59 @@
+# ============================================================================
+# Development Environment Configuration
+# ============================================================================
+
+[Alembic]
+script_location = alembic
+file_template = %%(year)d_%%(month).2d_%%(day).2d_%%(hour).2d_%%(minute).2d_%%(second).2d_%%(slug)s
+timezone = UTC
+truncate_slug_length = 40
+revision_environment = true
+production = false
+
+sqlalchemy.url = postgresql://user:password@localhost:5432/parking_db_dev
+
+pool_size = 10
+max_overflow = 20
+pool_timeout = 30
+pool_recycle = 3600
+
+sqlalchemy.echo = true
+sqlalchemy.echo_pool = true
+sqlalchemy.pool_pre_ping = true
+
+version_table = alembic_version
+version_table_schema = 
+
+[loggers]
+keys = root,sqlalchemy,alembic
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = DEBUG
+handlers = console
+qualname =
+
+[logger_sqlalchemy]
+level = DEBUG
+handlers =
+qualname = sqlalchemy.engine
+
+[logger_alembic]
+level = DEBUG
+handlers =
+qualname = alembic
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %(levelname)-5.5s [%(name)s] %(message)s
+datefmt = %H:%M:%S

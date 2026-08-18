@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: parking-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - MONGODB_URI=mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@mongodb:27017/${MONGODB_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/${REDIS_DB}
+      - KAFKA_BROKERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - mongodb
+      - redis
+      - kafka
+    networks:
+      - parking-network
+
+  backend-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    container_name: parking-backend-worker
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/${REDIS_DB}
+      - KAFKA_BROKERS=kafka:9092
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - backend
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  backend-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: beat
+    container_name: parking-backend-beat
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/${REDIS_DB}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - backend-worker
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  backend-flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: flower
+    container_name: parking-backend-flower
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/${REDIS_DB}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - backend-worker
+      - redis
+    networks:
+      - parking-network
