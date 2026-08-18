@@ -1,0 +1,75 @@
+# ============================================================================
+# Docker Compose - Charging Service Integration
+# ============================================================================
+
+# parking-management-system/services/charging-service/docker-compose.yml
+
+version: '3.8'
+
+services:
+  charging-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: charging-service
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=charging_db
+      - DB_USER=charging_user
+      - DB_PASSWORD=charging_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=dev-secret-key
+      - OCPP_ENABLED=true
+      - OCPP_HOST=0.0.0.0
+      - OCPP_PORT=9000
+    volumes:
+      - ./src:/app/src
+      - ./logs:/app/logs
+    ports:
+      - "8003:8003"
+      - "9000:9000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - parking-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: charging-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=charging_db
+      - POSTGRES_USER=charging_user
+      - POSTGRES_PASSWORD=charging_password
+    volumes:
+      - charging-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - parking-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: charging-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - charging-redis-data:/data
+    ports:
+      - "6380:6379"
+    networks:
+      - parking-network
+
+volumes:
+  charging-postgres-data:
+  charging-redis-data:
+
+networks:
+  parking-network:
+    driver: bridge
