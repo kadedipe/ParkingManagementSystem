@@ -1,0 +1,505 @@
+# ============================================================================
+# CD Workflow - Continuous Deployment Pipeline
+# ============================================================================
+
+# parking-management-system/.github/workflows/cd.yml
+
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_IMAGE_NAME: ${{ github.repository }}
+  KUBE_NAMESPACE: parking-system
+
+jobs:
+  # ============================================================================
+  # Job 1: Validate and Test
+  # ============================================================================
+  validate:
+    name: Validate & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          npm ci
+          pip install -r requirements.txt
+
+      - name: Lint Code
+        run: |
+          npm run lint
+          npm run lint:types
+
+      - name: Run Unit Tests
+        run: npm run test:unit -- --coverage
+
+      - name: Run Integration Tests
+        run: npm run test:integration
+
+      - name: Run Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: Get Version
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=$(jq -r .version package.json)-$(git rev-parse --short HEAD)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # Job 2: Build Docker Images
+  # ============================================================================
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: validate
+    if: success()
+    outputs:
+      image_tag: ${{ steps.image-tag.outputs.tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set Image Tag
+        id: image-tag
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+          elif [[ $GITHUB_REF == refs/heads/main ]]; then
+            TAG=latest
+          else
+            TAG=${GITHUB_REF#refs/heads/}
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
+
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./infra/docker/Dockerfile.backend
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/backend:${{ env.IMAGE_TAG }}
+            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_VERSION=${{ env.NODE_VERSION }}
+            BUILD_VERSION=${{ needs.validate.outputs.version }}
+
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./infra/docker/Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/frontend:${{ env.IMAGE_TAG }}
+            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and Push Worker Images
+        run: |
+          for worker in email notification payment report cache; do
+            docker build \
+              -t ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/worker-$worker:${{ env.IMAGE_TAG }} \
+              -f ./infra/docker/Dockerfile.worker \
+              --build-arg WORKER_TYPE=$worker \
+              .
+            docker push ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/worker-$worker:${{ env.IMAGE_TAG }}
+          done
+
+      - name: Scan Docker Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/backend:${{ env.IMAGE_TAG }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
+
+  # ============================================================================
+  # Job 3: Deploy to Kubernetes
+  # ============================================================================
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build
+    if: success()
+    strategy:
+      matrix:
+        environment: [dev, staging, production]
+    environment:
+      name: ${{ matrix.environment }}
+      url: https://${{ matrix.environment }}.parkingapp.com
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: aws-actions/eks-kubeconfig@v1
+        with:
+          cluster-name: ${{ secrets.EKS_CLUSTER_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Create Namespace
+        run: |
+          kubectl create namespace ${{ env.KUBE_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Update Image Tag
+        run: |
+          sed -i "s|:latest|:${{ needs.build.outputs.image_tag }}|g" ./infra/kubernetes/deployment.yaml
+
+      - name: Deploy Database Migrations
+        run: |
+          kubectl apply -f ./infra/kubernetes/jobs/migrations.yaml -n ${{ env.KUBE_NAMESPACE }}
+          kubectl wait --for=condition=complete job/parking-migrations -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
+
+      - name: Apply ConfigMaps and Secrets
+        run: |
+          kubectl apply -f ./infra/kubernetes/configmap.yaml -n ${{ env.KUBE_NAMESPACE }}
+          kubectl apply -f ./infra/kubernetes/secrets.yaml -n ${{ env.KUBE_NAMESPACE }}
+
+      - name: Apply Persistent Volume Claims
+        run: |
+          kubectl apply -f ./infra/kubernetes/pvc.yaml -n ${{ env.KUBE_NAMESPACE }}
+
+      - name: Deploy Services
+        run: |
+          kubectl apply -f ./infra/kubernetes/service.yaml -n ${{ env.KUBE_NAMESPACE }}
+
+      - name: Deploy Applications
+        run: |
+          kubectl apply -f ./infra/kubernetes/deployment.yaml -n ${{ env.KUBE_NAMESPACE }}
+          kubectl rollout status deployment/parking-backend -n ${{ env.KUBE_NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/parking-frontend -n ${{ env.KUBE_NAMESPACE }} --timeout=5m
+
+      - name: Deploy Workers
+        run: |
+          for worker in email notification payment report cache; do
+            kubectl apply -f ./infra/kubernetes/worker-$worker.yaml -n ${{ env.KUBE_NAMESPACE }}
+            kubectl rollout status deployment/parking-worker-$worker -n ${{ env.KUBE_NAMESPACE }} --timeout=3m
+          done
+
+      - name: Apply Ingress
+        if: matrix.environment != 'dev'
+        run: |
+          kubectl apply -f ./infra/kubernetes/ingress.yaml -n ${{ env.KUBE_NAMESPACE }}
+
+      - name: Apply HPA
+        if: matrix.environment == 'production'
+        run: |
+          kubectl apply -f ./infra/kubernetes/hpa.yaml -n ${{ env.KUBE_NAMESPACE }}
+
+      - name: Apply Network Policies
+        if: matrix.environment != 'dev'
+        run: |
+          kubectl apply -f ./infra/kubernetes/network-policy.yaml -n ${{ env.KUBE_NAMESPACE }}
+
+  # ============================================================================
+  # Job 4: Smoke Tests
+  # ============================================================================
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: success()
+    strategy:
+      matrix:
+        environment: [dev, staging, production]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Smoke Tests
+        env:
+          API_URL: https://${{ matrix.environment }}.parkingapp.com
+        run: |
+          npm run test:smoke
+
+      - name: Health Check
+        run: |
+          curl -f https://${{ matrix.environment }}.parkingapp.com/health || exit 1
+
+  # ============================================================================
+  # Job 5: Performance Tests
+  # ============================================================================
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: success() && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        environment: [staging]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run K6 Load Tests
+        env:
+          BASE_URL: https://${{ matrix.environment }}.parkingapp.com
+        run: |
+          npm run test:load:smoke
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-results
+          path: ./results/
+
+  # ============================================================================
+  # Job 6: Notify Deployment Status
+  # ============================================================================
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy, smoke-tests]
+    if: always()
+    steps:
+      - name: Set Status
+        id: status
+        run: |
+          if [[ "${{ needs.deploy.result }}" == "success" ]] && [[ "${{ needs.smoke-tests.result }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+            echo "message=✅ Deployment completed successfully!" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+            echo "message=❌ Deployment failed!" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack Notification
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "${{ steps.status.outputs.message }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Parking Management System Deployment*\n${{ steps.status.outputs.message }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*\n${{ github.event.inputs.environment || 'auto' }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:*\n${{ needs.validate.outputs.version }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Author:*\n${{ github.actor }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Deployment"
+                      },
+                      "url": "https://${{ github.event.inputs.environment || 'staging' }}.parkingapp.com"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Send Email Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: ${{ steps.status.outputs.message }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions
+          body: |
+            Deployment Status: ${{ steps.status.outputs.status }}
+            Environment: ${{ github.event.inputs.environment || 'auto' }}
+            Version: ${{ needs.validate.outputs.version }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+            Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # ============================================================================
+  # Job 7: Rollback if Needed
+  # ============================================================================
+  rollback:
+    name: Rollback
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: failure()
+    environment:
+      name: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: aws-actions/eks-kubeconfig@v1
+        with:
+          cluster-name: ${{ secrets.EKS_CLUSTER_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Rollback Backend
+        run: |
+          kubectl rollout undo deployment/parking-backend -n ${{ env.KUBE_NAMESPACE }}
+          kubectl rollout status deployment/parking-backend -n ${{ env.KUBE_NAMESPACE }} --timeout=5m
+
+      - name: Rollback Frontend
+        run: |
+          kubectl rollout undo deployment/parking-frontend -n ${{ env.KUBE_NAMESPACE }}
+          kubectl rollout status deployment/parking-frontend -n ${{ env.KUBE_NAMESPACE }} --timeout=5m
+
+      - name: Send Rollback Notification
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "⚠️ Rollback completed!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*⚠️ Rollback Completed*\nThe deployment has been rolled back to the previous version."
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*\n${{ github.event.inputs.environment || 'staging' }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:*\n${{ needs.validate.outputs.version }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

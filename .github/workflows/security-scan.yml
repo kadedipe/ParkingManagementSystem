@@ -1,0 +1,633 @@
+# ============================================================================
+# Security Scan Workflow - Comprehensive Security Scanning
+# ============================================================================
+
+# parking-management-system/.github/workflows/security-scan.yml
+
+name: Security Scan
+
+on:
+  schedule:
+    # Run daily at 2:00 AM
+    - cron: '0 2 * * *'
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+  GO_VERSION: '1.21'
+
+jobs:
+  # ============================================================================
+  # Job 1: SAST - Static Application Security Testing
+  # ============================================================================
+  sast:
+    name: SAST - Static Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          npm ci
+          pip install -r requirements-dev.txt
+
+      # ============================================================================
+      # SonarQube Analysis
+      # ============================================================================
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORG }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.python.coverage.reportPaths=coverage/coverage.xml
+            -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/dist/**
+
+      # ============================================================================
+      # CodeQL Analysis
+      # ============================================================================
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, python, typescript
+          queries: security-extended,security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-python"
+
+      # ============================================================================
+      # Semgrep Analysis
+      # ============================================================================
+      - name: Semgrep Scan
+        run: |
+          pip install semgrep
+          semgrep --config=p/security-audit --config=p/owasp-top-ten --json -o semgrep-results.json .
+
+      - name: Upload Semgrep Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-results
+          path: semgrep-results.json
+
+      # ============================================================================
+      # Bandit Analysis (Python)
+      # ============================================================================
+      - name: Bandit Scan
+        run: |
+          bandit -r src/ -f json -o bandit-results.json
+
+      - name: Upload Bandit Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-results
+          path: bandit-results.json
+
+  # ============================================================================
+  # Job 2: DAST - Dynamic Application Security Testing
+  # ============================================================================
+  dast:
+    name: DAST - Dynamic Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: sast
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Application
+        run: npm run build
+
+      - name: Start Application
+        run: |
+          npm run start:test &
+          npx wait-on http://localhost:3000
+
+      # ============================================================================
+      # OWASP ZAP Scan
+      # ============================================================================
+      - name: OWASP ZAP Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a -j'
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: report_html.html
+
+      # ============================================================================
+      # Nikto Scan
+      # ============================================================================
+      - name: Nikto Scan
+        run: |
+          docker run --rm -v $(pwd):/tmp citicucu/nikto -h http://localhost:3000 -o /tmp/nikto-report.html
+
+      - name: Upload Nikto Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nikto-report
+          path: nikto-report.html
+
+      # ============================================================================
+      # OWASP Dependency Check
+      # ============================================================================
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'Parking Management System'
+          path: '.'
+          format: 'HTML'
+          out: 'reports'
+          args: >
+            --enableExperimental
+            --failOnCVSS 7
+
+      - name: Upload Dependency Check Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: reports/
+
+      # ============================================================================
+      # W3af Scan
+      # ============================================================================
+      - name: W3af Scan
+        run: |
+          docker run --rm -v $(pwd):/w3af-output andresriancho/w3af w3af_console -s /w3af-output/w3af-script.w3af
+
+      - name: Upload W3af Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w3af-report
+          path: w3af-output/
+
+  # ============================================================================
+  # Job 3: SCA - Software Composition Analysis
+  # ============================================================================
+  sca:
+    name: SCA - Software Composition Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: sast
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          npm ci
+          pip install -r requirements-dev.txt
+
+      # ============================================================================
+      # Snyk Scan
+      # ============================================================================
+      - name: Snyk Scan - Node.js
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=package.json
+
+      - name: Snyk Scan - Python
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=requirements.txt
+
+      - name: Snyk Monitor
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --monitor
+
+      # ============================================================================
+      # NPM Audit
+      # ============================================================================
+      - name: NPM Audit
+        run: |
+          npm audit --json > npm-audit-results.json
+          npm audit --audit-level=high
+
+      - name: Upload NPM Audit Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-results
+          path: npm-audit-results.json
+
+      # ============================================================================
+      # Safety Check (Python)
+      # ============================================================================
+      - name: Safety Check
+        run: |
+          safety check -r requirements.txt --json > safety-results.json
+
+      - name: Upload Safety Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-results
+          path: safety-results.json
+
+      # ============================================================================
+      # RetireJS Scan
+      # ============================================================================
+      - name: RetireJS Scan
+        run: |
+          npx retire --js --node --json > retirejs-results.json
+
+      - name: Upload RetireJS Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: retirejs-results
+          path: retirejs-results.json
+
+  # ============================================================================
+  # Job 4: Container Security Scan
+  # ============================================================================
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: sast
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build -t parking-backend:scan -f ./infra/docker/Dockerfile.backend .
+
+      # ============================================================================
+      # Trivy Scan
+      # ============================================================================
+      - name: Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'parking-backend:scan'
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-results
+          path: |
+            trivy-fs-results.sarif
+            trivy-image-results.sarif
+
+      # ============================================================================
+      # Anchore Scan
+      # ============================================================================
+      - name: Anchore Scan
+        uses: anchore/scan-action@v3
+        with:
+          image: 'parking-backend:scan'
+          acs-report-enable: true
+          severity-cutoff: high
+
+      - name: Upload Anchore Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anchore-report
+          path: ./anchore-reports/
+
+      # ============================================================================
+      # Docker Scout Scan
+      # ============================================================================
+      - name: Docker Scout Scan
+        uses: docker/scout-action@v1
+        with:
+          command: quickview
+          image: parking-backend:scan
+          only-severities: critical,high
+
+      # ============================================================================
+      # Grype Scan
+      # ============================================================================
+      - name: Grype Scan
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock anchore/grype parking-backend:scan -o json > grype-results.json
+
+      - name: Upload Grype Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grype-results
+          path: grype-results.json
+
+  # ============================================================================
+  # Job 5: Secret Scanning
+  # ============================================================================
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ============================================================================
+      # Gitleaks Scan
+      # ============================================================================
+      - name: Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        with:
+          config: .gitleaks.toml
+          report-format: json
+          report-path: gitleaks-report.json
+
+      - name: Upload Gitleaks Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+
+      # ============================================================================
+      # TruffleHog Scan
+      # ============================================================================
+      - name: TruffleHog Scan
+        run: |
+          docker run --rm -v $(pwd):/workdir -it trufflesecurity/trufflehog:latest github --repo https://github.com/${{ github.repository }} --json > trufflehog-results.json
+
+      - name: Upload TruffleHog Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trufflehog-results
+          path: trufflehog-results.json
+
+      # ============================================================================
+      # GitLeaks Additional Scan
+      # ============================================================================
+      - name: GitLeaks Scan (Full History)
+        run: |
+          docker run --rm -v $(pwd):/path zricethezav/gitleaks:latest detect --source="/path" --verbose --redact --report-format=json --report-path=/path/gitleaks-history-report.json
+
+      - name: Upload GitLeaks History Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gitleaks-history-report
+          path: gitleaks-history-report.json
+
+  # ============================================================================
+  # Job 6: Infrastructure as Code Security Scan
+  # ============================================================================
+  iac-scan:
+    name: Infrastructure as Code Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ============================================================================
+      # Checkov Scan
+      # ============================================================================
+      - name: Checkov Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ./infra
+          framework: terraform,kubernetes
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+
+      - name: Upload Checkov Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-results
+          path: checkov-results.sarif
+
+      # ============================================================================
+      # Terrascan Scan
+      # ============================================================================
+      - name: Terrascan Scan
+        run: |
+          docker run --rm -v $(pwd):/iac -w /iac tenable/terrascan scan -i terraform -d ./infra/terraform -o json > terrascan-results.json
+
+      - name: Upload Terrascan Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terrascan-results
+          path: terrascan-results.json
+
+      # ============================================================================
+      # KICS Scan (Kubernetes)
+      # ============================================================================
+      - name: KICS Scan
+        run: |
+          docker run --rm -v $(pwd):/path checkmarx/kics:latest scan -p /path/infra/kubernetes -o /path/kics-results.json
+
+      - name: Upload KICS Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kics-results
+          path: kics-results.json
+
+  # ============================================================================
+  # Job 7: Dependency Updates
+  # ============================================================================
+  dependency-updates:
+    name: Check Security Updates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Check for Security Updates
+        run: |
+          npm audit --json > security-audit.json
+
+      - name: Create Security Update PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore(security): update vulnerable dependencies'
+          title: 'chore(security): update vulnerable dependencies'
+          body: |
+            This PR updates vulnerable dependencies.
+
+            Security audit report attached.
+          branch: chore/security-updates
+          delete-branch: true
+
+  # ============================================================================
+  # Job 8: Reporting
+  # ============================================================================
+  reporting:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [sast, sca, container-scan, secret-scan, iac-scan]
+    if: always()
+    steps:
+      - name: Download All Reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/
+
+      - name: Generate Combined Report
+        run: |
+          python3 scripts/generate-security-report.py reports/
+
+      - name: Upload Combined Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report-combined
+          path: security-report.html
+
+      # ============================================================================
+      # Send Slack Notification
+      # ============================================================================
+      - name: Send Slack Notification
+        uses: slackapi/slack-github-action@v1.25.0
+        if: always()
+        with:
+          payload: |
+            {
+              "text": "🔒 Security Scan Results",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Security Scan Completed*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:*\n${{ job.status }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\n${{ github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Report"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SECURITY_SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
