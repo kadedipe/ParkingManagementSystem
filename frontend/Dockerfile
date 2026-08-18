@@ -1,7 +1,10 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# The committed lockfile is currently behind package.json. Use npm install during
+# the transition so Railway/CI can resolve the complete declared dependency graph.
+# Regenerate and commit frontend/package-lock.json in the next dependency-freeze pass.
+RUN npm install --include=dev --no-audit --no-fund
 COPY . .
 RUN npm run build:prod
 
