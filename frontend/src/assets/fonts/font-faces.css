@@ -1,0 +1,300 @@
+/* ==========================================================================
+   Font Faces
+   ========================================================================== */
+
+/* ==========================================================================
+   Inter Font - Primary Font
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 100;
+  font-display: swap;
+  src: 
+    local('Inter Thin'),
+    local('Inter-Thin'),
+    url('./inter/Inter-Thin.woff2') format('woff2'),
+    url('./inter/Inter-Thin.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 200;
+  font-display: swap;
+  src: 
+    local('Inter ExtraLight'),
+    local('Inter-ExtraLight'),
+    url('./inter/Inter-ExtraLight.woff2') format('woff2'),
+    url('./inter/Inter-ExtraLight.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 300;
+  font-display: swap;
+  src: 
+    local('Inter Light'),
+    local('Inter-Light'),
+    url('./inter/Inter-Light.woff2') format('woff2'),
+    url('./inter/Inter-Light.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 400;
+  font-display: swap;
+  src: 
+    local('Inter Regular'),
+    local('Inter-Regular'),
+    url('./inter/Inter-Regular.woff2') format('woff2'),
+    url('./inter/Inter-Regular.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 500;
+  font-display: swap;
+  src: 
+    local('Inter Medium'),
+    local('Inter-Medium'),
+    url('./inter/Inter-Medium.woff2') format('woff2'),
+    url('./inter/Inter-Medium.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 600;
+  font-display: swap;
+  src: 
+    local('Inter SemiBold'),
+    local('Inter-SemiBold'),
+    url('./inter/Inter-SemiBold.woff2') format('woff2'),
+    url('./inter/Inter-SemiBold.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 700;
+  font-display: swap;
+  src: 
+    local('Inter Bold'),
+    local('Inter-Bold'),
+    url('./inter/Inter-Bold.woff2') format('woff2'),
+    url('./inter/Inter-Bold.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 800;
+  font-display: swap;
+  src: 
+    local('Inter ExtraBold'),
+    local('Inter-ExtraBold'),
+    url('./inter/Inter-ExtraBold.woff2') format('woff2'),
+    url('./inter/Inter-ExtraBold.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 900;
+  font-display: swap;
+  src: 
+    local('Inter Black'),
+    local('Inter-Black'),
+    url('./inter/Inter-Black.woff2') format('woff2'),
+    url('./inter/Inter-Black.woff') format('woff');
+}
+
+/* ==========================================================================
+   Roboto Font - Secondary Font
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Roboto';
+  font-weight: 100;
+  font-display: swap;
+  src: 
+    local('Roboto Thin'),
+    local('Roboto-Thin'),
+    url('./roboto/Roboto-Thin.woff2') format('woff2'),
+    url('./roboto/Roboto-Thin.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-weight: 300;
+  font-display: swap;
+  src: 
+    local('Roboto Light'),
+    local('Roboto-Light'),
+    url('./roboto/Roboto-Light.woff2') format('woff2'),
+    url('./roboto/Roboto-Light.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-weight: 400;
+  font-display: swap;
+  src: 
+    local('Roboto Regular'),
+    local('Roboto-Regular'),
+    url('./roboto/Roboto-Regular.woff2') format('woff2'),
+    url('./roboto/Roboto-Regular.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-weight: 500;
+  font-display: swap;
+  src: 
+    local('Roboto Medium'),
+    local('Roboto-Medium'),
+    url('./roboto/Roboto-Medium.woff2') format('woff2'),
+    url('./roboto/Roboto-Medium.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-weight: 700;
+  font-display: swap;
+  src: 
+    local('Roboto Bold'),
+    local('Roboto-Bold'),
+    url('./roboto/Roboto-Bold.woff2') format('woff2'),
+    url('./roboto/Roboto-Bold.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-weight: 900;
+  font-display: swap;
+  src: 
+    local('Roboto Black'),
+    local('Roboto-Black'),
+    url('./roboto/Roboto-Black.woff2') format('woff2'),
+    url('./roboto/Roboto-Black.woff') format('woff');
+}
+
+/* ==========================================================================
+   Material Icons
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: 
+    local('Material Icons'),
+    url('./icons/material-icons.woff2') format('woff2'),
+    url('./icons/material-icons.woff') format('woff');
+}
+
+/* ==========================================================================
+   Font Classes
+   ========================================================================== */
+
+/* Inter Font Family */
+.font-inter {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Roboto Font Family */
+.font-roboto {
+  font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Material Icons */
+.font-material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'liga';
+}
+
+/* ==========================================================================
+   Font Weight Classes
+   ========================================================================== */
+
+.font-thin { font-weight: 100; }
+.font-extra-light { font-weight: 200; }
+.font-light { font-weight: 300; }
+.font-regular { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semi-bold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.font-extra-bold { font-weight: 800; }
+.font-black { font-weight: 900; }
+
+/* ==========================================================================
+   Font Size Classes
+   ========================================================================== */
+
+.text-xs { font-size: 0.75rem; line-height: 1rem; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.text-base { font-size: 1rem; line-height: 1.5rem; }
+.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+.text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
+.text-5xl { font-size: 3rem; line-height: 1; }
+.text-6xl { font-size: 3.75rem; line-height: 1; }
+.text-7xl { font-size: 4.5rem; line-height: 1; }
+.text-8xl { font-size: 6rem; line-height: 1; }
+.text-9xl { font-size: 8rem; line-height: 1; }
+
+/* ==========================================================================
+   Text Alignment
+   ========================================================================== */
+
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-justify { text-align: justify; }
+
+/* ==========================================================================
+   Text Decoration
+   ========================================================================== */
+
+.underline { text-decoration: underline; }
+.line-through { text-decoration: line-through; }
+.no-underline { text-decoration: none; }
+
+/* ==========================================================================
+   Text Transform
+   ========================================================================== */
+
+.uppercase { text-transform: uppercase; }
+.lowercase { text-transform: lowercase; }
+.capitalize { text-transform: capitalize; }
+.normal-case { text-transform: none; }
+
+/* ==========================================================================
+   Text Overflow
+   ========================================================================== */
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.break-words {
+  word-break: break-word;
+}
+
+.break-all {
+  word-break: break-all;
+}

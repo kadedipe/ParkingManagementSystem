@@ -1,0 +1,139 @@
+/* ============================================================================
+   Global Styles
+   ============================================================================ */
+
+/* Import all style modules */
+@import './reset.css';
+@import './variables.css';
+@import './theme.css';
+@import './typography.css';
+@import './utilities.css';
+@import './animations.css';
+@import './components.css';
+@import './responsive.css';
+@import './dark-mode.css';
+@import './print.css';
+
+/* ============================================================================
+   Global Base Styles
+   ============================================================================ */
+
+/* Apply base styles */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-secondary);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ============================================================================
+   Selection Styles
+   ============================================================================ */
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+::-moz-selection {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+/* ============================================================================
+   Scrollbar Styles
+   ============================================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-gray-100);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-gray-400);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-500);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-400) var(--color-gray-100);
+}
+
+/* ============================================================================
+   Focus Styles
+   ============================================================================ */
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Disabled States
+   ============================================================================ */
+
+.disabled,
+[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Hidden Scrollbar (utility)
+   ============================================================================ */
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================================
+   Transitions
+   ============================================================================ */
+
+* {
+  transition: 
+    background-color var(--transition-duration-standard) var(--transition-easing-ease-in-out),
+    border-color var(--transition-duration-standard) var(--transition-easing-ease-in-out),
+    color var(--transition-duration-standard) var(--transition-easing-ease-in-out),
+    opacity var(--transition-duration-standard) var(--transition-easing-ease-in-out),
+    transform var(--transition-duration-standard) var(--transition-easing-ease-in-out);
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
