@@ -8,9 +8,8 @@ import path from 'path';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const isProduction = mode === 'production';
-  
+
   const config: UserConfig = {
-    // ... same configuration as above but typed
     server: {
       port: parseInt(env.VITE_PORT || '5173'),
       host: env.VITE_HOST || '0.0.0.0',
@@ -72,8 +71,10 @@ export default defineConfig(({ mode }) => {
           },
         },
       }),
+      // vite-plugin-svgr v4 exposes plugin options separately from svgrOptions.
+      // exportAsDefault was removed from the public plugin option type, so keep
+      // the configuration limited to the supported SVGR transformation options.
       svgr({
-        exportAsDefault: true,
         svgrOptions: {
           icon: true,
         },
@@ -89,6 +90,6 @@ export default defineConfig(({ mode }) => {
       },
     },
   };
-  
+
   return config;
 });
