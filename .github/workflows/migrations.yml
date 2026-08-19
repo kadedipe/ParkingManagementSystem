@@ -20,7 +20,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U user -d parking_db"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -43,10 +43,10 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/parking_db
-        run: alembic upgrade head
+        run: alembic -c alembic.ini upgrade head
 
       - name: Check migration status
         working-directory: backend
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/parking_db
-        run: alembic current
+        run: alembic -c alembic.ini current
