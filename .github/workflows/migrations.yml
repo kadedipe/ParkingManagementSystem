@@ -39,14 +39,15 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
+      - name: Verify Alembic configuration
+        run: test -f "$GITHUB_WORKSPACE/backend/alembic.ini"
+
       - name: Run migrations
-        working-directory: backend
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/parking_db
-        run: alembic -c alembic.ini upgrade head
+        run: python -m alembic -c "$GITHUB_WORKSPACE/backend/alembic.ini" upgrade head
 
       - name: Check migration status
-        working-directory: backend
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/parking_db
-        run: alembic -c alembic.ini current
+        run: python -m alembic -c "$GITHUB_WORKSPACE/backend/alembic.ini" current
