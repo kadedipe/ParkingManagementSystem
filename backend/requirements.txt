@@ -34,8 +34,9 @@ bcrypt==4.1.1
 PyJWT==2.8.0
 
 # Payment Processing
-# 6.11.0 and 6.10.0 are not published on the current PyPI index used by CI.
-stripe==6.8.0
+# 6.8.0 was not available as a stable release on the CI PyPI index;
+# 6.7.0 is the corresponding published stable v6 release.
+stripe==6.7.0
 
 # Email & Notifications
 sendgrid==6.10.0
