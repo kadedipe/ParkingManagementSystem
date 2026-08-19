@@ -8,10 +8,11 @@ import path from 'path';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const isProduction = mode === 'production';
+  const entry = './src/main.jsx';
 
   const config: UserConfig = {
     server: {
-      port: parseInt(env.VITE_PORT || '5173'),
+      port: parseInt(env.VITE_PORT || '5173', 10),
       host: env.VITE_HOST || '0.0.0.0',
       proxy: {
         '/api': {
@@ -62,7 +63,7 @@ export default defineConfig(({ mode }) => {
       react(),
       createHtmlPlugin({
         minify: isProduction,
-        entry: '/src/main.tsx',
+        entry,
         template: 'index.html',
         inject: {
           data: {
@@ -71,9 +72,6 @@ export default defineConfig(({ mode }) => {
           },
         },
       }),
-      // vite-plugin-svgr v4 exposes plugin options separately from svgrOptions.
-      // exportAsDefault was removed from the public plugin option type, so keep
-      // the configuration limited to the supported SVGR transformation options.
       svgr({
         svgrOptions: {
           icon: true,
