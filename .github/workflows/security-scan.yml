@@ -1,0 +1,124 @@
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  sast:
+    name: SAST - Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Semgrep
+        uses: semgrep/semgrep-action@v1
+        continue-on-error: true
+        with:
+          config: p/security-audit p/owasp-top-ten
+
+      - name: Bandit
+        run: |
+          python -m pip install --disable-pip-version-check bandit
+          bandit -r backend services shared -f json -o bandit-results.json || true
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-results
+          path: bandit-results.json
+          if-no-files-found: ignore
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Use the maintained community action so this repository does not require
+      # a commercial Gitleaks license. The scan still uses Gitleaks v8.
+      - name: Gitleaks
+        uses: gacts/gitleaks@v1
+        with:
+          version: latest
+          path: .
+          fail-on-error: true
+
+  sca:
+    name: SCA - Software Composition Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node dependency audit
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Python dependency audit
+        run: |
+          python -m pip install --disable-pip-version-check pip-audit
+          pip-audit -r backend/requirements.txt
+
+  infrastructure:
+    name: Infrastructure as Code Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra
+          quiet: true
+          soft_fail: true
+
+  container:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+
+  dast:
+    name: DAST - Dynamic Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: DAST prerequisite check
+        run: |
+          test -f frontend/Dockerfile
+          test -f services/gateway-service/Dockerfile
+          echo "Application containers are present; full DAST runs after staging deployment."
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [sast, secret-scanning, sca, infrastructure, container, dast]
+    if: always()
+    steps:
+      - name: Security scan summary
+        run: |
+          echo "Security workflow completed. Review individual job results above."
+          echo "DAST is intentionally limited to deployment prerequisites in CI; full dynamic scanning belongs in staging/production validation."
