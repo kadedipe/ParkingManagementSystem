@@ -1,66 +1,64 @@
 # ============================================================================
 # Parking Management System - Backend Production Requirements
 # Python 3.10+
-# Generated from pyproject.toml
+# Security-patched production baseline
 # ============================================================================
 
 # Core Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-starlette==0.27.0
+fastapi==0.140.8
+uvicorn[standard]==0.38.0
+pydantic==2.12.5
+pydantic-settings==2.10.1
+# Starlette is resolved by the compatible FastAPI release.
 
 # Database & ORM
-sqlalchemy==2.0.23
-alembic==1.12.1
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
-pymongo==4.5.0
-redis==5.0.1
+sqlalchemy==2.0.43
+alembic==1.17.2
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+pymongo==4.15.4
+redis==7.0.1
 
 # Message Queue
-kafka-python==2.0.2
-aiokafka==0.8.0
-celery==5.3.4
-kombu==5.3.4
+kafka-python==2.3.2
+aiokafka==0.12.0
+celery==5.5.3
+kombu==5.5.4
 
 # Authentication & Security
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
-cryptography==41.0.7
-bcrypt==4.1.1
-PyJWT==2.8.0
+python-multipart==0.0.32
+cryptography==49.0.0
+bcrypt==4.3.0
+PyJWT==2.13.0
 
 # Payment Processing
-# 6.8.0 was not available as a stable release on the CI PyPI index;
-# 6.7.0 is the corresponding published stable v6 release.
 stripe==6.7.0
 
 # Email & Notifications
-sendgrid==6.10.0
-twilio==8.5.0
-jinja2==3.1.2
+sendgrid==6.12.5
+twilio==9.8.7
+jinja2==3.1.6
 
 # Monitoring & Logging
-sentry-sdk==1.38.0
-structlog==23.3.0
-python-json-logger==2.0.7
-prometheus-client==0.19.0
+sentry-sdk==2.66.1
+structlog==25.4.0
+python-json-logger==3.3.0
+prometheus-client==0.23.1
 
 # AWS Services
-boto3==1.33.0
+boto3==1.40.35
 
 # Utilities
-python-dotenv==1.0.0
-httpx==0.25.1
-tenacity==8.2.3
-python-dateutil==2.8.2
-typing-extensions==4.8.0
-email-validator==2.1.0
-pytz==2023.3
-click==8.1.7
-python-telegram-bot==20.6
-uuid==1.30
-orjson==3.9.7
+python-dotenv==1.2.2
+httpx==0.28.1
+tenacity==9.1.2
+python-dateutil==2.9.0.post0
+typing-extensions==4.15.0
+email-validator==2.3.0
+pytz==2025.2
+click==8.3.3
+python-telegram-bot==22.5
+orjson==3.11.9
+urllib3==2.7.0
