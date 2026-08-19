@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   migrations:
     runs-on: ubuntu-latest
@@ -40,14 +43,30 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Verify Alembic configuration
-        run: test -f "$GITHUB_WORKSPACE/backend/alembic.ini"
+        working-directory: backend
+        run: |
+          test -f alembic.ini
+          test -d alembic
+          python - <<'PY'
+          from configparser import ConfigParser
+          from pathlib import Path
+
+          config = ConfigParser()
+          config.read("alembic.ini")
+          assert config.has_section("alembic"), "[alembic] section is missing"
+          assert config.get("alembic", "script_location") == "alembic"
+          assert Path("alembic/env.py").is_file(), "alembic/env.py is missing"
+          print("Alembic configuration is valid")
+          PY
 
       - name: Run migrations
+        working-directory: backend
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/parking_db
-        run: python -m alembic -c "$GITHUB_WORKSPACE/backend/alembic.ini" upgrade head
+        run: python -m alembic upgrade head
 
       - name: Check migration status
+        working-directory: backend
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/parking_db
-        run: python -m alembic -c "$GITHUB_WORKSPACE/backend/alembic.ini" current
+        run: python -m alembic current
