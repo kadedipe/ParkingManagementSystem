@@ -27,7 +27,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 
-    <!-- Production-safe CSP. Runtime API/WebSocket configuration is handled by the React app. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src https://js.stripe.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';"
@@ -56,7 +55,7 @@
         </div>
       </div>
     </div>
-    <!-- Vite entrypoint: this frontend is JSX-based; do not change to main.tsx. -->
+    <!-- Production entrypoint: the application is JSX-based and must load main.jsx. -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
