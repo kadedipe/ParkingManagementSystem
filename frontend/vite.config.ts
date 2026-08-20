@@ -1,18 +1,20 @@
-// vite.config.ts
-import { defineConfig, loadEnv, UserConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import { createHtmlPlugin } from 'vite-plugin-html';
 import svgr from 'vite-plugin-svgr';
-import path from 'path';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, configDir, '');
   const isProduction = mode === 'production';
   const entry = './src/main.jsx';
 
-  const config: UserConfig = {
+  return {
     server: {
-      port: parseInt(env.VITE_PORT || '5173', 10),
+      port: Number.parseInt(env.VITE_PORT || '5173', 10),
       host: env.VITE_HOST || '0.0.0.0',
       proxy: {
         '/api': {
@@ -23,29 +25,31 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@components': path.resolve(__dirname, './src/components'),
-        '@pages': path.resolve(__dirname, './src/pages'),
-        '@hooks': path.resolve(__dirname, './src/hooks'),
-        '@utils': path.resolve(__dirname, './src/utils'),
-        '@types': path.resolve(__dirname, './src/types'),
-        '@api': path.resolve(__dirname, './src/api'),
-        '@store': path.resolve(__dirname, './src/store'),
-        '@assets': path.resolve(__dirname, './src/assets'),
-        '@styles': path.resolve(__dirname, './src/styles'),
-        '@routes': path.resolve(__dirname, './src/routes'),
-        '@services': path.resolve(__dirname, './src/services'),
-        '@validators': path.resolve(__dirname, './src/validators'),
-        '@constants': path.resolve(__dirname, './src/constants'),
-        '@helpers': path.resolve(__dirname, './src/helpers'),
-        '@config': path.resolve(__dirname, './src/config'),
-        '@contexts': path.resolve(__dirname, './src/contexts'),
+        '@': path.resolve(configDir, './src'),
+        '@components': path.resolve(configDir, './src/components'),
+        '@pages': path.resolve(configDir, './src/pages'),
+        '@hooks': path.resolve(configDir, './src/hooks'),
+        '@utils': path.resolve(configDir, './src/utils'),
+        '@types': path.resolve(configDir, './src/types'),
+        '@api': path.resolve(configDir, './src/api'),
+        '@store': path.resolve(configDir, './src/store'),
+        '@assets': path.resolve(configDir, './src/assets'),
+        '@styles': path.resolve(configDir, './src/styles'),
+        '@routes': path.resolve(configDir, './src/routes'),
+        '@services': path.resolve(configDir, './src/services'),
+        '@validators': path.resolve(configDir, './src/validators'),
+        '@constants': path.resolve(configDir, './src/constants'),
+        '@helpers': path.resolve(configDir, './src/helpers'),
+        '@config': path.resolve(configDir, './src/config'),
+        '@contexts': path.resolve(configDir, './src/contexts'),
       },
     },
     build: {
       outDir: env.VITE_BUILD_OUTPUT_DIR || 'dist',
       sourcemap: !isProduction,
-      minify: isProduction ? 'terser' : false,
+      // Use Vite's built-in minifier so production builds do not require
+      // the optional terser package to be installed.
+      minify: isProduction ? 'esbuild' : false,
       rollupOptions: {
         output: {
           manualChunks: {
@@ -68,7 +72,8 @@ export default defineConfig(({ mode }) => {
         inject: {
           data: {
             title: env.VITE_APP_NAME || 'Parking Management System',
-            description: env.VITE_APP_DESCRIPTION || 'A comprehensive parking management system',
+            description:
+              env.VITE_APP_DESCRIPTION || 'A comprehensive parking management system',
           },
         },
       }),
@@ -78,16 +83,5 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
-    test: {
-      globals: true,
-      environment: 'jsdom',
-      setupFiles: ['./src/test/setup.ts'],
-      coverage: {
-        provider: 'v8',
-        reporter: ['text', 'json', 'html'],
-      },
-    },
   };
-
-  return config;
 });
