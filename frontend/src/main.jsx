@@ -13,7 +13,7 @@ import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { ErrorBoundary } from './components/common/ErrorBoundary';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { PageLoader } from './components/common/PageLoader';
 import './styles/index.css';
 import './styles/globals.css';
