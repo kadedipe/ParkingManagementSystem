@@ -114,4 +114,4 @@ Read [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact Railway service matrix, va
 
 ## Security
 
-Never commit `.env`, provider secrets, JWT secrets, database passwords, Stripe secret keys, Firebase service-account JSON, or SMTP/Twilio credentials. Only `.env.example` files belong in Git
+Never commit `.env`, provider secrets, JWT secrets, database passwords, Stripe secret keys, Firebase service-account JSON, or SMTP/Twilio credentials. Only `.env.example` files belong in Git.
