@@ -25,7 +25,6 @@ import { usePerformance } from './hooks/usePerformance';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { ToastContainer } from './components/common/ToastContainer';
 
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -229,9 +228,6 @@ function App() {
           },
         }}
       />
-
-      {/* Toast container for custom toasts */}
-      <ToastContainer />
 
       {/* Main routes with suspense */}
       <ErrorBoundary>
