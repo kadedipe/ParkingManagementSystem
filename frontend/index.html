@@ -1,410 +1,53 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
-    <!-- ========================================================================
-    Meta Tags
-    ========================================================================= -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1976d2" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    
-    <!-- Primary Meta Tags -->
-    <title>%VITE_APP_NAME%</title>
-    <meta name="title" content="%VITE_APP_NAME%" />
-    <meta name="description" content="%VITE_APP_DESCRIPTION%" />
-    <meta name="keywords" content="parking, management, system, ev, charging, smart parking" />
+    <meta name="application-name" content="Parking Management System" />
+    <meta name="description" content="A production-ready parking management system for parking, vehicles, notifications, charging, and operations." />
     <meta name="author" content="Parking Management System Team" />
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="%VITE_APP_URL%" />
-    <meta property="og:title" content="%VITE_APP_NAME%" />
-    <meta property="og:description" content="%VITE_APP_DESCRIPTION%" />
-    <meta property="og:image" content="/images/og-image.png" />
-    
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="%VITE_APP_URL%" />
-    <meta property="twitter:title" content="%VITE_APP_NAME%" />
-    <meta property="twitter:description" content="%VITE_APP_DESCRIPTION%" />
-    <meta property="twitter:image" content="/images/og-image.png" />
-    
-    <!-- ========================================================================
-    Icons & Favicons
-    ========================================================================= -->
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <link rel="shortcut icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#1976d2" />
-    
-    <!-- ========================================================================
-    Fonts
-    ========================================================================= -->
-    <!-- Google Fonts (Inter) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link 
-      href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" 
-      rel="stylesheet"
-    />
-    
-    <!-- Font Awesome (Icons) -->
-    <link 
-      rel="stylesheet" 
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-      integrity="sha512-xxxxx"
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-    
-    <!-- ========================================================================
-    Preload Critical Assets
-    ========================================================================= -->
-    <link rel="preload" href="/fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/inter-latin-600.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/inter-latin-700.woff2" as="font" type="font/woff2" crossorigin />
-    
-    <!-- ========================================================================
-    Stylesheets
-    ========================================================================= -->
-    <link rel="stylesheet" href="/src/styles/index.css" />
-    
-    <!-- ========================================================================
-    Security Headers
-    ========================================================================= -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="X-Frame-Options" content="DENY" />
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
-    <meta name="referrer" content="strict-origin-when-cross-origin" />
-    
-    <!-- ========================================================================
-    Content Security Policy (CSP)
-    ========================================================================= -->
-    <!-- 
-      Note: CSP is typically handled by the server/nginx.
-      These meta tags are for additional protection.
-    -->
-    <meta 
-      http-equiv="Content-Security-Policy" 
-      content="
-        default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google-analytics.com https://js.stripe.com;
-        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-        font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;
-        img-src 'self' data: https:;
-        connect-src 'self' %VITE_API_URL% %VITE_WEBSOCKET_URL% https://api.stripe.com;
-        frame-src https://js.stripe.com https://www.google.com;
-        worker-src 'self' blob:;
-      "
-    />
-    
-    <!-- ========================================================================
-    Preconnect to External Services
-    ========================================================================= -->
-    <link rel="preconnect" href="%VITE_API_URL%" />
-    <link rel="preconnect" href="%VITE_WEBSOCKET_URL%" />
-    <link rel="dns-prefetch" href="%VITE_API_URL%" />
-    <link rel="dns-prefetch" href="%VITE_WEBSOCKET_URL%" />
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
-    
-    <!-- ========================================================================
-    Additional Meta Tags (PWA)
-    ========================================================================= -->
-    <meta name="application-name" content="%VITE_APP_NAME%" />
-    <meta name="apple-mobile-web-app-title" content="%VITE_APP_NAME%" />
-    <meta name="msapplication-TileColor" content="#1976d2" />
-    <meta name="msapplication-TileImage" content="/mstile-144x144.png" />
-    <meta name="msapplication-config" content="/browserconfig.xml" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    
-    <!-- ========================================================================
-    Structured Data (JSON-LD)
-    ========================================================================= -->
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "%VITE_APP_NAME%",
-        "description": "%VITE_APP_DESCRIPTION%",
-        "applicationCategory": "BusinessApplication",
-        "operatingSystem": "All",
-        "browserRequirements": "Requires JavaScript",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
-      }
-    </script>
-    
-    <!-- ========================================================================
-    Inline Critical CSS (Above the Fold)
-    ========================================================================= -->
+    <title>Parking Management System</title>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Parking Management System" />
+    <meta property="og:description" content="A production-ready parking management system." />
+    <meta property="og:url" content="/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Parking Management System" />
+    <meta name="twitter:description" content="A production-ready parking management system." />
+    <link rel="icon" href="/vite.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src https://js.stripe.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';" />
     <style>
-      /* Critical CSS for initial render */
-      :root {
-        --primary-color: #1976d2;
-        --primary-dark: #1565c0;
-        --primary-light: #42a5f5;
-        --text-primary: #1a1a1a;
-        --text-secondary: #666666;
-        --background-default: #f5f5f5;
-        --background-paper: #ffffff;
-        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      }
-      
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      
-      html {
-        scroll-behavior: smooth;
-        -webkit-text-size-adjust: 100%;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-      
-      body {
-        font-family: var(--font-family);
-        background-color: var(--background-default);
-        color: var(--text-primary);
-        line-height: 1.5;
-        min-height: 100vh;
-        min-height: 100dvh;
-        display: flex;
-        flex-direction: column;
-      }
-      
-      #root {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-      }
-      
-      /* Loading screen styles */
-      .app-loading {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        min-height: 100dvh;
-        background: var(--background-default);
-        flex-direction: column;
-        gap: 1.5rem;
-      }
-      
-      .app-loading-logo {
-        width: 64px;
-        height: 64px;
-        animation: pulse 1.5s ease-in-out infinite;
-      }
-      
-      .app-loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 4px solid var(--primary-light);
-        border-top-color: var(--primary-color);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      }
-      
-      .app-loading-text {
-        color: var(--text-secondary);
-        font-size: 1rem;
-        font-weight: 500;
-        animation: fadeInOut 1.5s ease-in-out infinite;
-      }
-      
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      
-      @keyframes pulse {
-        0%, 100% {
-          opacity: 1;
-          transform: scale(1);
-        }
-        50% {
-          opacity: 0.7;
-          transform: scale(0.95);
-        }
-      }
-      
-      @keyframes fadeInOut {
-        0%, 100% {
-          opacity: 0.6;
-        }
-        50% {
-          opacity: 1;
-        }
-      }
-      
-      /* Fallback font loading */
-      .fonts-loading {
-        opacity: 0;
-      }
-      
-      .fonts-loaded {
-        opacity: 1;
-        transition: opacity 0.3s ease;
-      }
-      
-      /* Reduced motion preferences */
-      @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-        }
-      }
-      
-      /* Dark mode preference */
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --background-default: #121212;
-          --background-paper: #1e1e1e;
-          --text-primary: #e0e0e0;
-          --text-secondary: #a0a0a0;
-        }
-      }
+      :root { --primary-color:#1976d2; --primary-light:#42a5f5; --text-primary:#1a1a1a; --text-secondary:#666; --background-default:#f5f5f5; --font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+      *,*::before,*::after { box-sizing:border-box; }
+      html,body,#root { min-height:100%; }
+      html { scroll-behavior:smooth; }
+      body { margin:0; font-family:var(--font-family); background:var(--background-default); color:var(--text-primary); }
+      .app-loading { min-height:100vh; display:grid; place-items:center; text-align:center; padding:2rem; }
+      .app-loading-content { display:grid; gap:1rem; justify-items:center; }
+      .app-loading-spinner { width:40px; height:40px; border:4px solid var(--primary-light); border-top-color:var(--primary-color); border-radius:50%; animation:spin .8s linear infinite; }
+      @keyframes spin { to { transform:rotate(360deg); } }
+      @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
     </style>
   </head>
-  
   <body>
-    <!-- ========================================================================
-    App Root
-    ========================================================================= -->
     <div id="root">
-      <!-- Loading screen (will be replaced by React) -->
-      <div class="app-loading" id="app-loading">
-        <svg class="app-loading-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="32" cy="32" r="30" stroke="var(--primary-color)" stroke-width="4" />
-          <path d="M32 8 C32 8 32 24 32 32 C32 40 32 56 32 56" stroke="var(--primary-color)" stroke-width="4" stroke-linecap="round" />
-          <path d="M32 32 L48 32" stroke="var(--primary-color)" stroke-width="4" stroke-linecap="round" />
-          <path d="M32 32 L20 44" stroke="var(--primary-color)" stroke-width="4" stroke-linecap="round" />
-          <path d="M32 32 L44 20" stroke="var(--primary-color)" stroke-width="4" stroke-linecap="round" />
-          <circle cx="32" cy="32" r="6" fill="var(--primary-color)" />
-        </svg>
-        <div class="app-loading-spinner"></div>
-        <div class="app-loading-text">Loading %VITE_APP_NAME%...</div>
+      <div class="app-loading" aria-live="polite">
+        <div class="app-loading-content">
+          <strong>Parking Management System</strong>
+          <div class="app-loading-spinner" aria-hidden="true"></div>
+          <span>Loading application…</span>
+        </div>
       </div>
     </div>
-    
-    <!-- ========================================================================
-    Scripts
-    ========================================================================= -->
-    <!-- 
-      Note: The main script is loaded by Vite.
-      For production, this will be a bundled file.
-    -->
+    <!-- Production entrypoint: the application is JSX-based and must load main.jsx. -->
     <script type="module" src="/src/main.jsx"></script>
-    
-    <!-- ========================================================================
-    Third-Party Scripts
-    ========================================================================= -->
-    <!-- Stripe (for payments) -->
-    <script src="https://js.stripe.com/v3/" async></script>
-    
-    <!-- Google Analytics (if enabled) -->
-    <script type="text/plain" data-cookieconsent="statistics">
-      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-      ga('create', '%VITE_GOOGLE_ANALYTICS_ID%', 'auto');
-      ga('send', 'pageview');
-    </script>
-    
-    <!-- ========================================================================
-    Fallback for No JavaScript
-    ========================================================================= -->
-    <noscript>
-      <div style="text-align: center; padding: 2rem; font-family: var(--font-family);">
-        <h1>JavaScript Required</h1>
-        <p>Please enable JavaScript to use the %VITE_APP_NAME%.</p>
-      </div>
-    </noscript>
-    
-    <!-- ========================================================================
-    Service Worker Registration (PWA)
-    ========================================================================= -->
-    <script>
-      if ('serviceWorker' in navigator && import.meta.env.PROD) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker
-            .register('/sw.js')
-            .then((registration) => {
-              console.log('ServiceWorker registration successful');
-            })
-            .catch((error) => {
-              console.log('ServiceWorker registration failed:', error);
-            });
-        });
-      }
-    </script>
-    
-    <!-- ========================================================================
-    Performance Metrics (Web Vitals)
-    ========================================================================= -->
-    <script type="module">
-      if (import.meta.env.PROD) {
-        import('https://unpkg.com/web-vitals@3/dist/web-vitals.attribution.js?module')
-          .then(({ onCLS, onFID, onFCP, onLCP, onTTFB }) => {
-            const sendToAnalytics = (metric) => {
-              console.log(`%cWeb Vitals: ${metric.name}`, 'color: #1976d2; font-weight: bold;');
-              console.log(`  Value: ${metric.value}`);
-              console.log(`  Rating: ${metric.rating}`);
-              console.log(`  Attribution:`, metric.attribution);
-              
-              // Send to analytics if enabled
-              if (import.meta.env.VITE_ANALYTICS_ENABLED === 'true') {
-                // Send to Google Analytics
-                if (window.ga) {
-                  window.ga('send', 'event', {
-                    eventCategory: 'Web Vitals',
-                    eventAction: metric.name,
-                    eventLabel: metric.id,
-                    eventValue: Math.round(metric.value),
-                    nonInteraction: true,
-                  });
-                }
-                
-                // Send to Sentry if available
-                if (window.Sentry) {
-                  window.Sentry.addBreadcrumb({
-                    category: 'web-vitals',
-                    message: `${metric.name}: ${metric.value}`,
-                    level: metric.rating === 'good' ? 'info' : 'warning',
-                  });
-                }
-              }
-            };
-            
-            onCLS(sendToAnalytics);
-            onFID(sendToAnalytics);
-            onFCP(sendToAnalytics);
-            onLCP(sendToAnalytics);
-            onTTFB(sendToAnalytics);
-          })
-          .catch((error) => {
-            console.warn('Failed to load Web Vitals:', error);
-          });
-      }
-    </script>
+    <!-- CI validation marker: this file is intentionally tracked on the PR head. -->
   </body>
 </html>

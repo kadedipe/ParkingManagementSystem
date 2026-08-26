@@ -2,14 +2,24 @@ name: Docker Build
 
 on:
   pull_request:
-    branches: [main, develop]
   push:
-    branches: [main, develop]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      validation_sha:
+        description: Commit SHA to validate
+        required: false
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
   build:
+    name: Docker / ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: gateway
@@ -20,10 +30,14 @@ jobs:
             context: services/vehicle-service
           - name: notification
             context: services/notification-service
+          - name: charging
+            context: services/charging-service
           - name: frontend
             context: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.validation_sha || github.sha }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:

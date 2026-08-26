@@ -1,58 +1,30 @@
-"""
-Alembic environment configuration for database migrations.
-"""
+"""Alembic environment configuration for database migrations."""
 
 import os
-import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
 from alembic import context
-
-# Add the project root to the path so that we can import models
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
-# Import the metadata object from your application
-from src.infrastructure.database import Base
-
-# ============================================================================
-# Alembic Config object
-# ============================================================================
+from sqlalchemy import engine_from_config, pool
 
 config = context.config
 
-# Interpret the config file for Python logging
-fileConfig(config.config_file_name)
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
-# ============================================================================
-# Target Metadata
-# ============================================================================
-
-target_metadata = Base.metadata
-
-# ============================================================================
-# Environment Functions
-# ============================================================================
-
-def get_url():
-    """Get the database URL from environment variable or config."""
-    # Use environment variable if available
-    db_url = os.getenv("DATABASE_URL")
-    if db_url:
-        return db_url
-    
-    # Fallback to config file
-    return config.get_main_option("sqlalchemy.url")
+# This repository currently has no SQLAlchemy declarative metadata registered
+# for Alembic and no checked-in revision scripts. Keep target_metadata empty so
+# `alembic upgrade head` remains a valid no-op until the first revision is
+# introduced. Runtime database clients are intentionally not imported here.
+target_metadata = None
 
 
-def run_migrations_offline():
-    """
-    Run migrations in 'offline' mode.
-    
-    This configures the context with just a URL and not an Engine,
-    though an Engine is acceptable here as well. By skipping the Engine
-    creation we don't even need a DBAPI to be available.
-    """
+def get_url() -> str:
+    """Return DATABASE_URL when supplied, otherwise the Alembic config value."""
+    return os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+
+
+def run_migrations_offline() -> None:
+    """Run migrations without creating a database connection."""
     url = get_url()
     context.configure(
         url=url,
@@ -65,17 +37,9 @@ def run_migrations_offline():
         context.run_migrations()
 
 
-def run_migrations_online():
-    """
-    Run migrations in 'online' mode.
-    
-    In this scenario we need to create an Engine and associate a
-    connection with the context.
-    """
-    # Get the database URL
+def run_migrations_online() -> None:
+    """Run migrations using a live database connection."""
     url = get_url()
-    
-    # Configure the engine
     connectable = engine_from_config(
         config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
@@ -92,10 +56,6 @@ def run_migrations_online():
         with context.begin_transaction():
             context.run_migrations()
 
-
-# ============================================================================
-# Determine which mode to run
-# ============================================================================
 
 if context.is_offline_mode():
     run_migrations_offline()
