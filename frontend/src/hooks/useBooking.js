@@ -99,4 +99,7 @@ export const useBookings = () => {
   };
 };
 
+// Backward-compatible singular alias used by existing booking components.
+export const useBooking = useBookings;
+
 export default useBookings;

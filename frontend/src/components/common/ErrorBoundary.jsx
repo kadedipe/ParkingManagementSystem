@@ -119,43 +119,26 @@ class ErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
-    // Update state so the next render will show the fallback UI
-    return {
-      hasError: true,
-      error: error,
-    };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log the error to an error reporting service
     this.logError(error, errorInfo);
-    
-    // Update state with error info
-    this.setState({
-      errorInfo: errorInfo,
-    });
-
-    // Call custom error handler if provided
-    if (this.props.onError) {
-      this.props.onError(error, errorInfo);
-    }
+    this.setState({ errorInfo });
+    if (this.props.onError) this.props.onError(error, errorInfo);
   }
 
   componentDidUpdate(prevProps) {
-    // Reset error state if the location changes (for route-based errors)
-    if (this.props.resetOnLocationChange && 
-        prevProps.location !== this.props.location &&
-        this.state.hasError) {
+    if (
+      this.props.resetOnLocationChange &&
+      prevProps.location !== this.props.location &&
+      this.state.hasError
+    ) {
       this.handleReset();
     }
   }
 
-  // ==========================================================================
-  // Error Logging
-  // ==========================================================================
-
   logError(error, errorInfo) {
-    // Log to console in development
     if (process.env.NODE_ENV === 'development') {
       console.group('🚨 ErrorBoundary caught an error');
       console.error('Error:', error);
@@ -163,9 +146,7 @@ class ErrorBoundary extends Component {
       console.groupEnd();
     }
 
-    // Log to error tracking service in production
     if (process.env.NODE_ENV === 'production') {
-      // Send to Sentry or other error tracking service
       if (window.Sentry) {
         window.Sentry.captureException(error, {
           extra: {
@@ -174,17 +155,9 @@ class ErrorBoundary extends Component {
           },
         });
       }
-
-      // Send to custom error reporting endpoint
-      if (this.props.reportError) {
-        this.props.reportError(error, errorInfo);
-      }
+      if (this.props.reportError) this.props.reportError(error, errorInfo);
     }
   }
-
-  // ==========================================================================
-  // Handlers
-  // ==========================================================================
 
   handleReset = () => {
     this.setState({
@@ -198,39 +171,23 @@ class ErrorBoundary extends Component {
 
   handleRetry = async () => {
     this.setState({ isRetrying: true });
-    
-    // Wait for any async operations
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Call retry callback if provided
-    if (this.props.onRetry) {
-      await this.props.onRetry();
-    }
-    
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (this.props.onRetry) await this.props.onRetry();
     this.handleReset();
   };
 
   handleToggleDetails = () => {
-    this.setState(prev => ({
-      showDetails: !prev.showDetails,
-    }));
+    this.setState((prev) => ({ showDetails: !prev.showDetails }));
   };
 
   handleGoHome = () => {
-    if (this.props.onGoHome) {
-      this.props.onGoHome();
-    } else {
-      window.location.href = '/';
-    }
+    if (this.props.onGoHome) this.props.onGoHome();
+    else window.location.href = '/';
   };
-
-  // ==========================================================================
-  // Render Fallback UI
-  // ==========================================================================
 
   renderFallbackUI() {
     const { error, errorInfo, showDetails, isRetrying } = this.state;
-    const { 
+    const {
       variant = 'page',
       title = 'Something went wrong',
       message = 'An unexpected error occurred. Please try again or contact support if the problem persists.',
@@ -244,14 +201,7 @@ class ErrorBoundary extends Component {
       customFallback,
     } = this.props;
 
-    // Use custom fallback if provided
-    if (customFallback) {
-      return customFallback(error, errorInfo, this.handleReset);
-    }
-
-    // ========================================================================
-    // Inline Variant (for small components)
-    // ========================================================================
+    if (customFallback) return customFallback(error, errorInfo, this.handleReset);
 
     if (variant === 'inline') {
       return (
@@ -279,27 +229,14 @@ class ErrorBoundary extends Component {
       );
     }
 
-    // ========================================================================
-    // Toast Variant (for notifications)
-    // ========================================================================
-
     if (variant === 'toast') {
       return (
-        <StyledAlert
-          severity="error"
-          icon={<ErrorIcon />}
-          sx={{ width: '100%' }}
-          onClose={this.handleReset}
-        >
+        <StyledAlert severity="error" icon={<ErrorIcon />} sx={{ width: '100%' }} onClose={this.handleReset}>
           <AlertTitle>{title}</AlertTitle>
           {message}
         </StyledAlert>
       );
     }
-
-    // ========================================================================
-    // Page Variant (default)
-    // ========================================================================
 
     return (
       <ErrorContainer>
@@ -316,7 +253,6 @@ class ErrorBoundary extends Component {
             {message}
           </Typography>
 
-          {/* Error details in development */}
           {(showDetailsProp || showDetails) && error && (
             <Box sx={{ width: '100%', mt: 2 }}>
               <Button
@@ -341,19 +277,8 @@ class ErrorBoundary extends Component {
                   {error.stack && (
                     <>
                       <Divider sx={{ my: 1 }} />
-                      <Typography variant="body2" component="div">
-                        <strong>Stack Trace:</strong>
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        component="pre"
-                        sx={{
-                          mt: 1,
-                          fontSize: '0.75rem',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
-                      >
+                      <Typography variant="body2" component="div"><strong>Stack Trace:</strong></Typography>
+                      <Typography variant="body2" component="pre" sx={{ mt: 1, fontSize: '0.75rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {error.stack}
                       </Typography>
                     </>
@@ -361,19 +286,8 @@ class ErrorBoundary extends Component {
                   {errorInfo?.componentStack && (
                     <>
                       <Divider sx={{ my: 1 }} />
-                      <Typography variant="body2" component="div">
-                        <strong>Component Stack:</strong>
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        component="pre"
-                        sx={{
-                          mt: 1,
-                          fontSize: '0.75rem',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
-                      >
+                      <Typography variant="body2" component="div"><strong>Component Stack:</strong></Typography>
+                      <Typography variant="body2" component="pre" sx={{ mt: 1, fontSize: '0.75rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {errorInfo.componentStack}
                       </Typography>
                     </>
@@ -383,54 +297,25 @@ class ErrorBoundary extends Component {
             </Box>
           )}
 
-          {/* Action Buttons */}
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            sx={{ mt: 3, width: '100%' }}
-          >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3, width: '100%' }}>
             {showRetry && (
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<RefreshIcon />}
-                onClick={this.handleRetry}
-                disabled={isRetrying}
-                fullWidth
-              >
+              <Button variant="contained" color="primary" startIcon={<RefreshIcon />} onClick={this.handleRetry} disabled={isRetrying} fullWidth>
                 {isRetrying ? 'Retrying...' : retryText}
               </Button>
             )}
             {showHome && (
-              <Button
-                variant="outlined"
-                color="primary"
-                startIcon={<HomeIcon />}
-                onClick={this.handleGoHome}
-                fullWidth
-              >
+              <Button variant="outlined" color="primary" startIcon={<HomeIcon />} onClick={this.handleGoHome} fullWidth>
                 {homeText}
               </Button>
             )}
             {showReset && (
-              <Button
-                variant="text"
-                color="secondary"
-                startIcon={<ReportProblemIcon />}
-                onClick={this.handleReset}
-                fullWidth
-              >
+              <Button variant="text" color="secondary" startIcon={<ReportProblemIcon />} onClick={this.handleReset} fullWidth>
                 {resetText}
               </Button>
             )}
           </Stack>
 
-          {/* Support Information */}
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ mt: 3, display: 'block' }}
-          >
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 3, display: 'block' }}>
             If this problem persists, please contact support.
             <br />
             Error ID: {new Date().getTime().toString(36).toUpperCase()}
@@ -440,19 +325,12 @@ class ErrorBoundary extends Component {
     );
   }
 
-  // ==========================================================================
-  // Render
-  // ==========================================================================
-
   render() {
     const { children, fallback } = this.props;
     const { hasError } = this.state;
 
     if (hasError) {
-      // Use custom fallback if provided
-      if (fallback) {
-        return fallback(this.state.error, this.state.errorInfo, this.handleReset);
-      }
+      if (fallback) return fallback(this.state.error, this.state.errorInfo, this.handleReset);
       return this.renderFallbackUI();
     }
 
@@ -460,13 +338,6 @@ class ErrorBoundary extends Component {
   }
 }
 
-// ============================================================================
-// Functional Error Boundary Wrapper
-// ============================================================================
-
-/**
- * Higher-order component that wraps a component with ErrorBoundary
- */
 export const withErrorBoundary = (Component, errorBoundaryProps = {}) => {
   return function WrappedComponent(props) {
     return (
@@ -477,14 +348,6 @@ export const withErrorBoundary = (Component, errorBoundaryProps = {}) => {
   };
 };
 
-// ============================================================================
-// ErrorBoundary Hook
-// ============================================================================
-
-/**
- * Hook for using ErrorBoundary in functional components
- * This is a simplified version that works with React hooks
- */
 export const useErrorBoundary = () => {
   const [error, setError] = React.useState(null);
   const [errorInfo, setErrorInfo] = React.useState(null);
@@ -505,18 +368,13 @@ export const useErrorBoundary = () => {
     resetError,
     handleError,
     ErrorBoundary: ({ children }) => (
-      <ErrorBoundary
-        onError={handleError}
-        onReset={resetError}
-      >
+      <ErrorBoundary onError={handleError} onReset={resetError}>
         {children}
       </ErrorBoundary>
     ),
   };
 };
 
-// ============================================================================
-// Export
-// ============================================================================
-
+// Support both import ErrorBoundary and import { ErrorBoundary } callers.
+export { ErrorBoundary };
 export default ErrorBoundary;

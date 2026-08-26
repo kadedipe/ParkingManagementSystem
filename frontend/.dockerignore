@@ -82,12 +82,12 @@ docker-compose*.yml
 !yarn.lock
 !package-lock.json
 
-# Public assets (these should be included)
+# Public assets and build configuration
 !public
 !index.html
-!vite.config.js
+!vite.config.ts
 !tailwind.config.js
 !postcss.config.js
 
-# Source code
-src
+# Source code must be available to the image build.
+!src/**
