@@ -3,7 +3,7 @@
 // ============================================================================
 
 import React, { createContext, useState, useCallback, useEffect } from 'react';
-import { authService } from '../services/auth.service';
+import authService from '../services/authService';
 import { config } from '../config';
 
 export const AuthContext = createContext(null);
