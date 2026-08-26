@@ -14,34 +14,37 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message, '[lock-sync]') }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+
       - name: Regenerate frontend lockfile
         working-directory: frontend
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Commit refreshed lockfile
-        id: lockfile
+
+      - name: Resolve validation SHA
+        id: validation
+        shell: bash
         run: |
           if git diff --quiet -- frontend/package-lock.json; then
             echo 'frontend/package-lock.json is already synchronized.'
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add frontend/package-lock.json
           git commit -m 'chore(frontend): refresh lockfile [lock-sync]'
           git push origin HEAD:${GITHUB_REF_NAME}
-          echo 'changed=true' >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch complete validation matrix
-        if: steps.lockfile.outputs.changed == 'true'
         uses: actions/github-script@v7
         env:
           VALIDATION_REF: ${{ github.ref_name }}
-          VALIDATION_SHA: ${{ steps.lockfile.outputs.sha }}
+          VALIDATION_SHA: ${{ steps.validation.outputs.sha }}
         with:
           script: |
             const workflows = [
@@ -50,6 +53,7 @@ jobs:
               'migrations.yml',
               'security-scan.yml'
             ];
+
             for (const workflow_id of workflows) {
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
