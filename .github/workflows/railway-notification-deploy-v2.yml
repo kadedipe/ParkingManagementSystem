@@ -1,0 +1,148 @@
+name: Railway Notification Production Deploy v2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'services/notification-service/**'
+      - '.github/workflows/railway-notification-deploy-v2.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-notification-production-v2
+  cancel-in-progress: false
+
+env:
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT: production
+  NOTIFICATION_SERVICE_ID: b71282ac-fa06-4060-8e60-d220f38cc67b
+  RAILWAY_NO_TELEMETRY: '1'
+  DO_NOT_TRACK: '1'
+
+jobs:
+  deploy:
+    name: Deploy Notification to Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require Railway project token
+        shell: bash
+        run: |
+          test -n "${RAILWAY_TOKEN:-}" || { echo '::error::RAILWAY_TOKEN is not configured'; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli
+
+      - name: Verify project-token scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          railway service list --json > /tmp/services.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/services.json'))
+          items=data.get('services') or data.get('items') or data.get('data') or data if isinstance(data, list) else []
+          names=[x.get('name') for x in items if isinstance(x,dict) and x.get('name')]
+          print('Railway services visible to project token:', ', '.join(names))
+          if not names:
+              raise SystemExit('No Railway services visible to project token')
+          PY
+
+      - name: Ensure Notification source is production main
+        run: |
+          railway service source connect \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$NOTIFICATION_SERVICE_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --branch main
+
+      - name: Discover Postgres and Redis service names
+        id: data
+        shell: bash
+        run: |
+          set -euo pipefail
+          railway service list --json > /tmp/services.json
+          mapfile -t SERVICES < <(python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/services.json'))
+          items=data.get('services') or data.get('items') or data.get('data') or data if isinstance(data, list) else []
+          for x in items:
+              if isinstance(x,dict) and x.get('name'):
+                  print(x['name'])
+          PY
+          )
+          PG=''
+          REDIS=''
+          for svc in "${SERVICES[@]}"; do
+            [ "$svc" = 'notification' ] && continue
+            vars="$(railway variable list --service "$svc" --environment "$RAILWAY_ENVIRONMENT" --json 2>/dev/null || true)"
+            if [ -z "$PG" ] && printf '%s' "$vars" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if (isinstance(d,dict) and "DATABASE_URL" in d) else 1)' 2>/dev/null; then PG="$svc"; fi
+            if [ -z "$REDIS" ] && printf '%s' "$vars" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if (isinstance(d,dict) and "REDIS_URL" in d) else 1)' 2>/dev/null; then REDIS="$svc"; fi
+          done
+          [ -n "$PG" ] || { echo '::error::No Railway service exposing DATABASE_URL found'; exit 1; }
+          [ -n "$REDIS" ] || { echo '::error::No Railway service exposing REDIS_URL found'; exit 1; }
+          echo "postgres=$PG" >> "$GITHUB_OUTPUT"
+          echo "redis=$REDIS" >> "$GITHUB_OUTPUT"
+          echo "Postgres service: $PG"
+          echo "Redis service: $REDIS"
+
+      - name: Wire Notification data-service references
+        shell: bash
+        env:
+          PG_SERVICE: ${{ steps.data.outputs.postgres }}
+          REDIS_SERVICE: ${{ steps.data.outputs.redis }}
+        run: |
+          set -euo pipefail
+          DB_REF='${{'
+          DB_REF="${DB_REF}${PG_SERVICE}.DATABASE_URL}}"
+          REDIS_REF='${{'
+          REDIS_REF="${REDIS_REF}${REDIS_SERVICE}.REDIS_URL}}"
+          railway variable set \
+            "DATABASE_URL=$DB_REF" \
+            "REDIS_URL=$REDIS_REF" \
+            ENVIRONMENT=production \
+            PORT=8080 \
+            DOCS_ENABLED=false \
+            --service "$NOTIFICATION_SERVICE_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --skip-deploys
+
+      - name: Validate required production variables
+        run: |
+          railway run \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$NOTIFICATION_SERVICE_ID" \
+            --no-local \
+            python3 -c 'import os,sys; req=("DATABASE_URL","REDIS_URL","JWT_SECRET","CORS_ORIGINS"); missing=[k for k in req if not os.getenv(k)]; print("Required variables present:", ", ".join(k for k in req if k not in missing)); sys.exit(bool(missing))'
+
+      - name: Deploy Notification
+        run: |
+          railway up services/notification-service \
+            --path-as-root \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$NOTIFICATION_SERVICE_ID" \
+            --ci \
+            --message "GitHub Actions production deploy ${GITHUB_SHA}"
+
+      - name: Show recent Railway logs on failure
+        if: failure()
+        run: |
+          railway logs \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$NOTIFICATION_SERVICE_ID" \
+            --lines 200 || true
