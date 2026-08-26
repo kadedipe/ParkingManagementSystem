@@ -105,10 +105,8 @@ jobs:
           REDIS_SERVICE: ${{ steps.data.outputs.redis }}
         run: |
           set -euo pipefail
-          DB_REF='${{'
-          DB_REF="${DB_REF}${PG_SERVICE}.DATABASE_URL}}"
-          REDIS_REF='${{'
-          REDIS_REF="${REDIS_REF}${REDIS_SERVICE}.REDIS_URL}}"
+          DB_REF=$(printf '%s%s%s' '$' "{{${PG_SERVICE}.DATABASE_URL" '}}')
+          REDIS_REF=$(printf '%s%s%s' '$' "{{${REDIS_SERVICE}.REDIS_URL" '}}')
           railway variable set \
             "DATABASE_URL=$DB_REF" \
             "REDIS_URL=$REDIS_REF" \
