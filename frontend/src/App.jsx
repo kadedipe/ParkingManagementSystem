@@ -25,7 +25,6 @@ import { usePerformance } from './hooks/usePerformance';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { LoadingFallback } from './components/common/LoadingFallback';
 import { ToastContainer } from './components/common/ToastContainer';
 
 // Lazy load pages for code splitting
