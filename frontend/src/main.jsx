@@ -14,7 +14,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { LoadingFallback } from './components/common/LoadingFallback';
+import { PageLoader } from './components/common/PageLoader';
 import './styles/index.css';
 import './styles/globals.css';
 import { theme } from './theme';
@@ -51,7 +51,7 @@ export function renderApp() {
 
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <ErrorBoundary fallback={<LoadingFallback />}>
+      <ErrorBoundary fallback={<PageLoader />}>
         <BrowserRouter>
           <QueryClientProvider client={queryClient}>
             <ThemeContextProvider>
