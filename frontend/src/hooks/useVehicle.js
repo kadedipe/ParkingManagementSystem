@@ -114,4 +114,7 @@ export const useVehicles = () => {
   };
 };
 
+// Backward-compatible singular alias used by existing vehicle components.
+export const useVehicle = useVehicles;
+
 export default useVehicles;
