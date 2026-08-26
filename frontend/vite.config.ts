@@ -55,7 +55,7 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
             'mui-vendor': ['@mui/material', '@mui/icons-material', '@mui/x-data-grid'],
-            'state-vendor': ['@tanstack/react-query', 'zustand'],
+            'state-vendor': ['@tanstack/react-query'],
             'chart-vendor': ['recharts'],
             'form-vendor': ['formik', 'react-hook-form', 'yup'],
             'utils-vendor': ['axios', 'date-fns'],
