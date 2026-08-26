@@ -1,5 +1,15 @@
 FROM node:20-alpine AS build
 WORKDIR /app
+
+# Railway makes service variables available to Docker builds only when the
+# Dockerfile explicitly declares the corresponding build arguments.
+ARG VITE_API_URL
+ARG VITE_WEBSOCKET_URL
+ARG VITE_ANALYTICS_ENABLED=false
+ENV VITE_API_URL=${VITE_API_URL} \
+    VITE_WEBSOCKET_URL=${VITE_WEBSOCKET_URL} \
+    VITE_ANALYTICS_ENABLED=${VITE_ANALYTICS_ENABLED}
+
 COPY package*.json ./
 # The committed lockfile is currently behind package.json. Use npm install during
 # the transition so Railway/CI can resolve the complete declared dependency graph.
