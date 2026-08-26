@@ -1,0 +1,321 @@
+name: Railway Notification Production Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'services/notification-service/**'
+      - '.github/workflows/railway-notification-deploy-v3.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-notification-production
+  cancel-in-progress: false
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT_NAME: production
+  NOTIFICATION_SERVICE_ID: b71282ac-fa06-4060-8e60-d220f38cc67b
+
+jobs:
+  deploy:
+    name: Deploy Notification to Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+    steps:
+      - name: Checkout production source
+        uses: actions/checkout@v4
+
+      - name: Require Railway project token
+        shell: bash
+        run: |
+          test -n "${RAILWAY_TOKEN:-}" || { echo '::error::RAILWAY_TOKEN is not configured'; exit 1; }
+
+      - name: Validate project token and discover production services
+        id: railway
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.request, urllib.error
+
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          expected_project = os.environ['RAILWAY_PROJECT_ID']
+          expected_environment_name = os.environ['RAILWAY_ENVIRONMENT_NAME']
+          notification_id = os.environ['NOTIFICATION_SERVICE_ID']
+
+          def gql(query, variables=None):
+              payload = json.dumps({'query': query, 'variables': variables or {}}).encode()
+              req = urllib.request.Request(
+                  api,
+                  data=payload,
+                  headers={
+                      'Content-Type': 'application/json',
+                      'Project-Access-Token': token,
+                  },
+                  method='POST',
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      body = json.load(response)
+              except urllib.error.HTTPError as exc:
+                  detail = exc.read().decode('utf-8', 'replace')[:1000]
+                  raise SystemExit(f'Railway API HTTP {exc.code}: {detail}')
+              if body.get('errors'):
+                  messages = '; '.join(e.get('message', 'GraphQL error') for e in body['errors'])
+                  raise SystemExit(f'Railway GraphQL error: {messages}')
+              return body['data']
+
+          token_info = gql('query { projectToken { projectId environmentId } }')['projectToken']
+          project_id = token_info['projectId']
+          environment_id = token_info['environmentId']
+          if project_id != expected_project:
+              raise SystemExit(
+                  f'RAILWAY_TOKEN is valid, but belongs to project {project_id}, not expected project {expected_project}'
+              )
+
+          project = gql(
+              '''query project($id: String!) {
+                   project(id: $id) {
+                     id
+                     name
+                     services { edges { node { id name } } }
+                     environments { edges { node { id name } } }
+                   }
+                 }''',
+              {'id': project_id},
+          )['project']
+
+          environments = {edge['node']['id']: edge['node']['name'] for edge in project['environments']['edges']}
+          environment_name = environments.get(environment_id)
+          if environment_name != expected_environment_name:
+              raise SystemExit(
+                  f'RAILWAY_TOKEN is scoped to environment {environment_name!r} ({environment_id}), '
+                  f'not {expected_environment_name!r}'
+              )
+
+          services = [edge['node'] for edge in project['services']['edges']]
+          if not any(s['id'] == notification_id for s in services):
+              raise SystemExit('Notification service is not present in the token-scoped Railway project')
+
+          variables_query = '''query variables($projectId: String!, $environmentId: String!, $serviceId: String) {
+                                 variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+                               }'''
+
+          postgres = []
+          redis = []
+          for service in services:
+              if service['id'] == notification_id:
+                  continue
+              data = gql(variables_query, {
+                  'projectId': project_id,
+                  'environmentId': environment_id,
+                  'serviceId': service['id'],
+              })['variables'] or {}
+              keys = set(data.keys()) if isinstance(data, dict) else set()
+              if 'DATABASE_URL' in keys:
+                  postgres.append(service)
+              if 'REDIS_URL' in keys:
+                  redis.append(service)
+
+          def choose(candidates, hint):
+              if not candidates:
+                  return None
+              preferred = [s for s in candidates if hint in s['name'].lower()]
+              return (preferred or candidates)[0]
+
+          pg = choose(postgres, 'postgres')
+          rd = choose(redis, 'redis')
+          if not pg:
+              raise SystemExit('No Railway service exposing DATABASE_URL was found in production')
+          if not rd:
+              raise SystemExit('No Railway service exposing REDIS_URL was found in production')
+
+          # Construct Railway references at runtime so GitHub never interprets them as Actions expressions.
+          db_ref = '$' + '{{' + pg['name'] + '.DATABASE_URL}}'
+          redis_ref = '$' + '{{' + rd['name'] + '.REDIS_URL}}'
+
+          gql(
+              '''mutation variableCollectionUpsert($input: VariableCollectionUpsertInput!) {
+                   variableCollectionUpsert(input: $input)
+                 }''',
+              {'input': {
+                  'projectId': project_id,
+                  'environmentId': environment_id,
+                  'serviceId': notification_id,
+                  'variables': {
+                      'DATABASE_URL': db_ref,
+                      'REDIS_URL': redis_ref,
+                      'ENVIRONMENT': 'production',
+                      'PORT': '8080',
+                      'DOCS_ENABLED': 'false',
+                  },
+                  'skipDeploys': True,
+              }},
+          )
+
+          # Confirm only keys/reference shape, never print secret or rendered values.
+          notification_vars = gql(variables_query, {
+              'projectId': project_id,
+              'environmentId': environment_id,
+              'serviceId': notification_id,
+          })['variables'] or {}
+          for key in ('DATABASE_URL', 'REDIS_URL'):
+              if key not in notification_vars:
+                  raise SystemExit(f'{key} was not present after Railway variable upsert')
+
+          state = {
+              'project_id': project_id,
+              'environment_id': environment_id,
+              'notification_id': notification_id,
+              'postgres_name': pg['name'],
+              'redis_name': rd['name'],
+          }
+          with open('/tmp/railway-state.json', 'w', encoding='utf-8') as fh:
+              json.dump(state, fh)
+
+          output = os.environ['GITHUB_OUTPUT']
+          with open(output, 'a', encoding='utf-8') as fh:
+              fh.write(f'environment_id={environment_id}\n')
+
+          print(f'Railway project token valid for project: {project["name"]}')
+          print(f'Production environment verified: {environment_name}')
+          print(f'PostgreSQL service discovered: {pg["name"]}')
+          print(f'Redis service discovered: {rd["name"]}')
+          print('Notification DATABASE_URL and REDIS_URL references updated without exposing values.')
+          PY
+
+      - name: Trigger Notification production deployment
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, time, urllib.request, urllib.error
+
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          with open('/tmp/railway-state.json', encoding='utf-8') as fh:
+              state = json.load(fh)
+
+          def gql(query, variables=None):
+              req = urllib.request.Request(
+                  api,
+                  data=json.dumps({'query': query, 'variables': variables or {}}).encode(),
+                  headers={'Content-Type': 'application/json', 'Project-Access-Token': token},
+                  method='POST',
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      body = json.load(response)
+              except urllib.error.HTTPError as exc:
+                  detail = exc.read().decode('utf-8', 'replace')[:1000]
+                  raise SystemExit(f'Railway API HTTP {exc.code}: {detail}')
+              if body.get('errors'):
+                  messages = '; '.join(e.get('message', 'GraphQL error') for e in body['errors'])
+                  raise SystemExit(f'Railway GraphQL error: {messages}')
+              return body['data']
+
+          deployments_query = '''query deployments($input: DeploymentListInput!) {
+                                   deployments(input: $input, first: 5) {
+                                     edges { node { id status createdAt } }
+                                   }
+                                 }'''
+          deploy_input = {
+              'projectId': state['project_id'],
+              'serviceId': state['notification_id'],
+          }
+
+          before = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
+          before_id = before[0]['node']['id'] if before else None
+
+          gql(
+              '''mutation serviceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+                   serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+                 }''',
+              {
+                  'serviceId': state['notification_id'],
+                  'environmentId': state['environment_id'],
+              },
+          )
+          print('Railway Notification deployment triggered.')
+
+          deployment_id = None
+          for _ in range(30):
+              edges = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
+              if edges and edges[0]['node']['id'] != before_id:
+                  deployment_id = edges[0]['node']['id']
+                  break
+              time.sleep(2)
+          if not deployment_id:
+              raise SystemExit('A new Railway deployment did not appear after deployment trigger')
+
+          print(f'Railway deployment ID: {deployment_id}')
+          terminal_success = {'SUCCESS'}
+          terminal_failure = {'FAILED', 'CRASHED', 'REMOVED', 'REMOVING'}
+          for _ in range(150):
+              edges = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
+              node = next((e['node'] for e in edges if e['node']['id'] == deployment_id), None)
+              if not node:
+                  time.sleep(4)
+                  continue
+              status = str(node['status']).upper()
+              print(f'Railway deployment status: {status}')
+              if status in terminal_success:
+                  print('Notification deployment reached SUCCESS; Railway deployment health gate passed.')
+                  raise SystemExit(0)
+              if status in terminal_failure:
+                  raise SystemExit(f'Notification deployment reached terminal failure state: {status}')
+              time.sleep(4)
+          raise SystemExit('Timed out waiting for Railway Notification deployment to reach a terminal state')
+          PY
+
+      - name: Print Railway deployment logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          if not os.path.exists('/tmp/railway-state.json'):
+              print('No Railway deployment state available; failure occurred before service discovery/deploy.')
+              raise SystemExit(0)
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          state = json.load(open('/tmp/railway-state.json'))
+          payload = {
+              'query': '''query deployments($input: DeploymentListInput!) {
+                            deployments(input: $input, first: 1) { edges { node { id status } } }
+                          }''',
+              'variables': {'input': {'projectId': state['project_id'], 'serviceId': state['notification_id']}},
+          }
+          req = urllib.request.Request(api, data=json.dumps(payload).encode(), headers={
+              'Content-Type': 'application/json', 'Project-Access-Token': token
+          }, method='POST')
+          with urllib.request.urlopen(req, timeout=30) as response:
+              data = json.load(response).get('data', {})
+          edges = data.get('deployments', {}).get('edges', [])
+          if not edges:
+              print('No Railway deployment found to fetch logs for.')
+              raise SystemExit(0)
+          deployment_id = edges[0]['node']['id']
+          log_payload = {
+              'query': '''query deploymentLogs($deploymentId: String!, $limit: Int) {
+                            deploymentLogs(deploymentId: $deploymentId, limit: $limit) {
+                              timestamp message severity
+                            }
+                          }''',
+              'variables': {'deploymentId': deployment_id, 'limit': 200},
+          }
+          req = urllib.request.Request(api, data=json.dumps(log_payload).encode(), headers={
+              'Content-Type': 'application/json', 'Project-Access-Token': token
+          }, method='POST')
+          with urllib.request.urlopen(req, timeout=30) as response:
+              body = json.load(response)
+          for line in body.get('data', {}).get('deploymentLogs', []) or []:
+              print(f"[{line.get('severity','INFO')}] {line.get('message','')}")
+          PY
