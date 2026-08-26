@@ -28,7 +28,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Vehicles = lazy(() => import('./pages/Vehicles'));
+const Vehicles = lazy(() => import('./pages/VehiclesPage'));
 const Parking = lazy(() => import('./pages/Parking'));
 const Charging = lazy(() => import('./pages/Charging'));
 const Payments = lazy(() => import('./pages/Payments'));
