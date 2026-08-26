@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.validation_sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || inputs.validation_sha || github.sha }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
