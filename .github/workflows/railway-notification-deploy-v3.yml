@@ -126,14 +126,25 @@ jobs:
               if 'REDIS_URL' in keys:
                   redis.append(service)
 
-          def choose(candidates, hint):
-              if not candidates:
-                  return None
-              preferred = [s for s in candidates if hint in s['name'].lower()]
-              return (preferred or candidates)[0]
+          def choose_data_service(hint, candidates):
+              # Consumer services can expose referenced DATABASE_URL/REDIS_URL keys.
+              # Prefer the actual Railway plugin service by name and never silently
+              # wire Notification to an arbitrary consumer such as frontend.
+              named = [s for s in services if s['id'] != notification_id and hint in s['name'].lower()]
+              if len(named) == 1:
+                  return named[0]
+              if len(named) > 1:
+                  names = ', '.join(s['name'] for s in named)
+                  raise SystemExit(f'Ambiguous Railway {hint} services: {names}')
+              safe = [s for s in candidates if s['name'].lower() not in {
+                  'frontend', 'gateway', 'notification', 'parking', 'vehicle', 'charging', 'common'
+              }]
+              if len(safe) == 1:
+                  return safe[0]
+              return None
 
-          pg = choose(postgres, 'postgres')
-          rd = choose(redis, 'redis')
+          pg = choose_data_service('postgres', postgres)
+          rd = choose_data_service('redis', redis)
           if not pg:
               raise SystemExit('No Railway service exposing DATABASE_URL was found in production')
           if not rd:
