@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, os, sys, time, urllib.request, urllib.error
+          import json, os, sys, urllib.request, urllib.error
 
           api = os.environ['RAILWAY_API_URL']
           token = os.environ['RAILWAY_TOKEN']
@@ -154,6 +154,15 @@ jobs:
           db_ref = '$' + '{{' + pg['name'] + '.DATABASE_PRIVATE_URL}}'
           redis_ref = '$' + '{{' + rd['name'] + '.REDIS_PRIVATE_URL}}'
 
+          deployments_query = '''query deployments($input: DeploymentListInput!) {
+                                   deployments(input: $input, first: 1) {
+                                     edges { node { id status createdAt } }
+                                   }
+                                 }'''
+          deploy_input = {'projectId': project_id, 'serviceId': notification_id}
+          before = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
+          before_id = before[0]['node']['id'] if before else None
+
           gql(
               '''mutation variableCollectionUpsert($input: VariableCollectionUpsertInput!) {
                    variableCollectionUpsert(input: $input)
@@ -169,27 +178,9 @@ jobs:
                       'PORT': '8080',
                       'DOCS_ENABLED': 'false',
                   },
-                  'skipDeploys': True,
+                  'skipDeploys': False,
               }},
           )
-
-          # Railway reference propagation is asynchronous. Do not deploy until both
-          # resolved values are present; never print either value.
-          required_refs = ('DATABASE_URL', 'REDIS_URL')
-          for _ in range(30):
-              notification_vars = gql(variables_query, {
-                  'projectId': project_id,
-                  'environmentId': environment_id,
-                  'serviceId': notification_id,
-              })['variables'] or {}
-              if all(isinstance(notification_vars.get(key), str) and notification_vars[key].strip()
-                     for key in required_refs):
-                  break
-              time.sleep(2)
-          else:
-              missing = [key for key in required_refs
-                         if not isinstance(notification_vars.get(key), str) or not notification_vars[key].strip()]
-              raise SystemExit('Railway references did not resolve to non-empty values: ' + ', '.join(missing))
 
           state = {
               'project_id': project_id,
@@ -197,6 +188,7 @@ jobs:
               'notification_id': notification_id,
               'postgres_name': pg['name'],
               'redis_name': rd['name'],
+              'before_deployment_id': before_id,
           }
           with open('/tmp/railway-state.json', 'w', encoding='utf-8') as fh:
               json.dump(state, fh)
@@ -255,19 +247,8 @@ jobs:
               'serviceId': state['notification_id'],
           }
 
-          before = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
-          before_id = before[0]['node']['id'] if before else None
-
-          gql(
-              '''mutation serviceInstanceDeploy($serviceId: String!, $environmentId: String!) {
-                   serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
-                 }''',
-              {
-                  'serviceId': state['notification_id'],
-                  'environmentId': state['environment_id'],
-              },
-          )
-          print('Railway Notification deployment triggered.')
+          before_id = state.get('before_deployment_id')
+          print('Railway Notification deployment triggered by variable collection upsert.')
 
           deployment_id = None
           for _ in range(30):
