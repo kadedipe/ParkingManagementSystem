@@ -121,9 +121,9 @@ jobs:
                   'serviceId': service['id'],
               })['variables'] or {}
               keys = set(data.keys()) if isinstance(data, dict) else set()
-              if 'DATABASE_URL' in keys:
+              if 'DATABASE_PRIVATE_URL' in keys:
                   postgres.append(service)
-              if 'REDIS_URL' in keys:
+              if 'REDIS_PRIVATE_URL' in keys:
                   redis.append(service)
 
           def choose_data_service(hint, candidates):
@@ -151,8 +151,8 @@ jobs:
               raise SystemExit('No Railway service exposing REDIS_URL was found in production')
 
           # Construct Railway references at runtime so GitHub never interprets them as Actions expressions.
-          db_ref = '$' + '{{' + pg['name'] + '.DATABASE_URL}}'
-          redis_ref = '$' + '{{' + rd['name'] + '.REDIS_URL}}'
+          db_ref = '$' + '{{' + pg['name'] + '.DATABASE_PRIVATE_URL}}'
+          redis_ref = '$' + '{{' + rd['name'] + '.REDIS_PRIVATE_URL}}'
 
           gql(
               '''mutation variableCollectionUpsert($input: VariableCollectionUpsertInput!) {
