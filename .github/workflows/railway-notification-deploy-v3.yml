@@ -161,7 +161,45 @@ jobs:
 
           # Use the documented single-variable API for Railway references. Build
           # the syntax at runtime so GitHub Actions never parses it as an expression.
-          db_ref = '
+          dollar = chr(36)
+          db_ref = dollar + chr(123) * 2 + pg['name'] + '.DATABASE_PRIVATE_URL' + chr(125) * 2
+          redis_ref = dollar + chr(123) * 2 + rd['name'] + '.REDIS_PRIVATE_URL' + chr(125) * 2
+          variable_upsert = (
+              'mutation variableUpsert(' + dollar + 'input: VariableUpsertInput!) '
+              '{ variableUpsert(input: ' + dollar + 'input) }'
+          )
+          for name, value in (('DATABASE_URL', db_ref), ('REDIS_URL', redis_ref)):
+              gql(variable_upsert, {'input': {
+                  'projectId': project_id,
+                  'environmentId': environment_id,
+                  'serviceId': notification_id,
+                  'name': name,
+                  'value': value,
+                  'skipDeploys': True,
+              }})
+
+          rendered_query = (
+              'query variablesForServiceDeployment('
+              + dollar + 'projectId: String!, '
+              + dollar + 'environmentId: String!, '
+              + dollar + 'serviceId: String!) { variablesForServiceDeployment('
+              + 'projectId: ' + dollar + 'projectId '
+              + 'environmentId: ' + dollar + 'environmentId '
+              + 'serviceId: ' + dollar + 'serviceId) }'
+          )
+          rendered = gql(rendered_query, {
+              'projectId': project_id,
+              'environmentId': environment_id,
+              'serviceId': notification_id,
+          })['variablesForServiceDeployment'] or {}
+          database_url = str(rendered.get('DATABASE_URL') or '').strip()
+          redis_url = str(rendered.get('REDIS_URL') or '').strip()
+          if not database_url.startswith(('postgres://', 'postgresql://')):
+              raise SystemExit('Railway could not render Notification DATABASE_URL from the Postgres reference')
+          if not redis_url.startswith(('redis://', 'rediss://')):
+              raise SystemExit('Railway could not render Notification REDIS_URL from the Redis reference')
+
+          state = {
               'project_id': project_id,
               'environment_id': environment_id,
               'notification_id': notification_id,
