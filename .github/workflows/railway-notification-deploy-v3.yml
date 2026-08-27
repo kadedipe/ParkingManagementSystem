@@ -167,10 +167,12 @@ jobs:
               'environmentId': environment_id,
               'serviceId': notification_id,
           })['variables'] or {}
-          missing = [key for key in ('DATABASE_URL', 'REDIS_URL')
-                     if not isinstance(notification_vars.get(key), str) or not notification_vars[key].strip()]
+          # Railway's API redacts typed reference values, so presence is the only
+          # safe pre-deploy assertion. Runtime resolution is verified by the
+          # deployment and health gate without exposing credentials.
+          missing = [key for key in ('DATABASE_URL', 'REDIS_URL') if key not in notification_vars]
           if missing:
-              raise SystemExit('Railway dashboard references are missing or unresolved: ' + ', '.join(missing))
+              raise SystemExit('Railway dashboard references are missing: ' + ', '.join(missing))
 
           state = {
               'project_id': project_id,
@@ -191,7 +193,7 @@ jobs:
           print(f'Production environment verified: {environment_name}')
           print(f'PostgreSQL service discovered: {pg["name"]}')
           print(f'Redis service discovered: {rd["name"]}')
-          print('Notification DATABASE_URL and REDIS_URL dashboard references resolved without exposing values.')
+          print('Notification DATABASE_URL and REDIS_URL dashboard reference keys verified.')
           PY
 
       - name: Trigger Notification production deployment
