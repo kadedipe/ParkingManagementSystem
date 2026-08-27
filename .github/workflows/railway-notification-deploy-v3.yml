@@ -263,6 +263,7 @@ jobs:
           print(f'Railway deployment ID: {deployment_id}')
           terminal_success = {'SUCCESS'}
           terminal_failure = {'FAILED', 'CRASHED', 'REMOVED', 'REMOVING'}
+          explicit_redeploy = False
           for _ in range(150):
               edges = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
               node = next((e['node'] for e in edges if e['node']['id'] == deployment_id), None)
@@ -271,6 +272,31 @@ jobs:
                   continue
               status = str(node['status']).upper()
               print(f'Railway deployment status: {status}')
+              if status == 'SKIPPED' and not explicit_redeploy:
+                  skipped_id = deployment_id
+                  gql(
+                      '''mutation serviceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+                           serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+                         }''',
+                      {
+                          'serviceId': state['notification_id'],
+                          'environmentId': state['environment_id'],
+                      },
+                  )
+                  explicit_redeploy = True
+                  print('Variable-only deployment was skipped; explicit Notification redeploy triggered.')
+                  for _ in range(30):
+                      edges = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
+                      if edges and edges[0]['node']['id'] != skipped_id:
+                          deployment_id = edges[0]['node']['id']
+                          print(f'Railway explicit deployment ID: {deployment_id}')
+                          break
+                      time.sleep(2)
+                  else:
+                      raise SystemExit('Explicit Notification redeploy did not create a new deployment')
+                  continue
+              if status == 'SKIPPED' and explicit_redeploy:
+                  raise SystemExit('Explicit Notification redeploy was skipped')
               if status in terminal_success:
                   print('Notification deployment reached SUCCESS; Railway deployment health gate passed.')
                   raise SystemExit(0)
