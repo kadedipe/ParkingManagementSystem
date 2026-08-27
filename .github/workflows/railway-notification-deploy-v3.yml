@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, os, sys, urllib.request, urllib.error
+          import json, os, sys, time, urllib.request, urllib.error
 
           api = os.environ['RAILWAY_API_URL']
           token = os.environ['RAILWAY_TOKEN']
@@ -173,15 +173,23 @@ jobs:
               }},
           )
 
-          # Confirm only keys/reference shape, never print secret or rendered values.
-          notification_vars = gql(variables_query, {
-              'projectId': project_id,
-              'environmentId': environment_id,
-              'serviceId': notification_id,
-          })['variables'] or {}
-          for key in ('DATABASE_URL', 'REDIS_URL'):
-              if key not in notification_vars:
-                  raise SystemExit(f'{key} was not present after Railway variable upsert')
+          # Railway reference propagation is asynchronous. Do not deploy until both
+          # resolved values are present; never print either value.
+          required_refs = ('DATABASE_URL', 'REDIS_URL')
+          for _ in range(30):
+              notification_vars = gql(variables_query, {
+                  'projectId': project_id,
+                  'environmentId': environment_id,
+                  'serviceId': notification_id,
+              })['variables'] or {}
+              if all(isinstance(notification_vars.get(key), str) and notification_vars[key].strip()
+                     for key in required_refs):
+                  break
+              time.sleep(2)
+          else:
+              missing = [key for key in required_refs
+                         if not isinstance(notification_vars.get(key), str) or not notification_vars[key].strip()]
+              raise SystemExit('Railway references did not resolve to non-empty values: ' + ', '.join(missing))
 
           state = {
               'project_id': project_id,
