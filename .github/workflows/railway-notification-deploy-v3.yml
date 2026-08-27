@@ -150,10 +150,6 @@ jobs:
           if not rd:
               raise SystemExit('No Railway service exposing REDIS_URL was found in production')
 
-          # Construct Railway references at runtime so GitHub never interprets them as Actions expressions.
-          db_ref = '$' + '{{' + pg['name'] + '.DATABASE_PRIVATE_URL}}'
-          redis_ref = '$' + '{{' + rd['name'] + '.REDIS_PRIVATE_URL}}'
-
           deployments_query = '''query deployments($input: DeploymentListInput!) {
                                    deployments(input: $input, first: 1) {
                                      edges { node { id status createdAt } }
@@ -163,24 +159,18 @@ jobs:
           before = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
           before_id = before[0]['node']['id'] if before else None
 
-          gql(
-              '''mutation variableCollectionUpsert($input: VariableCollectionUpsertInput!) {
-                   variableCollectionUpsert(input: $input)
-                 }''',
-              {'input': {
-                  'projectId': project_id,
-                  'environmentId': environment_id,
-                  'serviceId': notification_id,
-                  'variables': {
-                      'DATABASE_URL': db_ref,
-                      'REDIS_URL': redis_ref,
-                      'ENVIRONMENT': 'production',
-                      'PORT': '8080',
-                      'DOCS_ENABLED': 'false',
-                  },
-                  'skipDeploys': False,
-              }},
-          )
+          # Reference variables must be created in the Railway dashboard so Railway
+          # records them as references rather than empty literal values. Preserve
+          # those references and validate only their resolved, non-empty shape.
+          notification_vars = gql(variables_query, {
+              'projectId': project_id,
+              'environmentId': environment_id,
+              'serviceId': notification_id,
+          })['variables'] or {}
+          missing = [key for key in ('DATABASE_URL', 'REDIS_URL')
+                     if not isinstance(notification_vars.get(key), str) or not notification_vars[key].strip()]
+          if missing:
+              raise SystemExit('Railway dashboard references are missing or unresolved: ' + ', '.join(missing))
 
           state = {
               'project_id': project_id,
@@ -201,7 +191,7 @@ jobs:
           print(f'Production environment verified: {environment_name}')
           print(f'PostgreSQL service discovered: {pg["name"]}')
           print(f'Redis service discovered: {rd["name"]}')
-          print('Notification DATABASE_URL and REDIS_URL references updated without exposing values.')
+          print('Notification DATABASE_URL and REDIS_URL dashboard references resolved without exposing values.')
           PY
 
       - name: Trigger Notification production deployment
@@ -248,7 +238,16 @@ jobs:
           }
 
           before_id = state.get('before_deployment_id')
-          print('Railway Notification deployment triggered by variable collection upsert.')
+          gql(
+              '''mutation serviceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+                   serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+                 }''',
+              {
+                  'serviceId': state['notification_id'],
+                  'environmentId': state['environment_id'],
+              },
+          )
+          print('Railway Notification deployment triggered with preserved dashboard references.')
 
           deployment_id = None
           for _ in range(30):
@@ -263,7 +262,6 @@ jobs:
           print(f'Railway deployment ID: {deployment_id}')
           terminal_success = {'SUCCESS'}
           terminal_failure = {'FAILED', 'CRASHED', 'REMOVED', 'REMOVING'}
-          explicit_redeploy = False
           for _ in range(150):
               edges = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
               node = next((e['node'] for e in edges if e['node']['id'] == deployment_id), None)
@@ -272,31 +270,8 @@ jobs:
                   continue
               status = str(node['status']).upper()
               print(f'Railway deployment status: {status}')
-              if status == 'SKIPPED' and not explicit_redeploy:
-                  skipped_id = deployment_id
-                  gql(
-                      '''mutation serviceInstanceDeploy($serviceId: String!, $environmentId: String!) {
-                           serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
-                         }''',
-                      {
-                          'serviceId': state['notification_id'],
-                          'environmentId': state['environment_id'],
-                      },
-                  )
-                  explicit_redeploy = True
-                  print('Variable-only deployment was skipped; explicit Notification redeploy triggered.')
-                  for _ in range(30):
-                      edges = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
-                      if edges and edges[0]['node']['id'] != skipped_id:
-                          deployment_id = edges[0]['node']['id']
-                          print(f'Railway explicit deployment ID: {deployment_id}')
-                          break
-                      time.sleep(2)
-                  else:
-                      raise SystemExit('Explicit Notification redeploy did not create a new deployment')
-                  continue
-              if status == 'SKIPPED' and explicit_redeploy:
-                  raise SystemExit('Explicit Notification redeploy was skipped')
+              if status == 'SKIPPED':
+                  raise SystemExit('Notification deployment was skipped')
               if status in terminal_success:
                   print('Notification deployment reached SUCCESS; Railway deployment health gate passed.')
                   raise SystemExit(0)
