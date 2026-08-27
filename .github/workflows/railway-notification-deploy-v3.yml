@@ -162,11 +162,11 @@ jobs:
           # Apply the dashboard's staged variable references before redeploying.
           # serviceInstanceDeploy alone only redeploys the currently active config.
           staged_applied = gql(
-              '''mutation environmentPatchCommitStage($environmentId: String!) {
-                   environmentPatchCommitStage(environmentId: $environmentId)
+              '''mutation environmentPatchCommitStaged($environmentId: String!) {
+                   environmentPatchCommitStaged(environmentId: $environmentId)
                  }''',
               {'environmentId': environment_id},
-          )['environmentPatchCommitStage']
+          )['environmentPatchCommitStaged']
 
           state = {
               'project_id': project_id,
