@@ -112,7 +112,6 @@ jobs:
 
           postgres = []
           redis = []
-          service_variables = {}
           for service in services:
               if service['id'] == notification_id:
                   continue
@@ -121,7 +120,6 @@ jobs:
                   'environmentId': environment_id,
                   'serviceId': service['id'],
               })['variables'] or {}
-              service_variables[service['id']] = data
               keys = set(data.keys()) if isinstance(data, dict) else set()
               if 'DATABASE_PRIVATE_URL' in keys:
                   postgres.append(service)
@@ -152,17 +150,6 @@ jobs:
           if not rd:
               raise SystemExit('No Railway service exposing REDIS_URL was found in production')
 
-          database_url = str(service_variables.get(pg['id'], {}).get('DATABASE_PRIVATE_URL') or '').strip()
-          redis_url = str(service_variables.get(rd['id'], {}).get('REDIS_PRIVATE_URL') or '').strip()
-          if not database_url:
-              raise SystemExit('PostgreSQL DATABASE_PRIVATE_URL resolved to an empty value')
-          if not redis_url:
-              raise SystemExit('Redis REDIS_PRIVATE_URL resolved to an empty value')
-          if not database_url.startswith(('postgres://', 'postgresql://')):
-              raise SystemExit('PostgreSQL DATABASE_PRIVATE_URL has an unexpected scheme')
-          if not redis_url.startswith(('redis://', 'rediss://')):
-              raise SystemExit('Redis REDIS_PRIVATE_URL has an unexpected scheme')
-
           deployments_query = '''query deployments($input: DeploymentListInput!) {
                                    deployments(input: $input, first: 1) {
                                      edges { node { id status createdAt } }
@@ -172,26 +159,14 @@ jobs:
           before = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
           before_id = before[0]['node']['id'] if before else None
 
-          # Copy resolved private URLs without logging them. This bypasses staged or
-          # unresolved dashboard references while keeping both values inside Railway.
-          gql(
-              '''mutation variableCollectionUpsert($input: VariableCollectionUpsertInput!) {
-                   variableCollectionUpsert(input: $input)
+          # Apply the dashboard's staged variable references before redeploying.
+          # serviceInstanceDeploy alone only redeploys the currently active config.
+          staged_applied = gql(
+              '''mutation environmentPatchCommitStage($environmentId: String!) {
+                   environmentPatchCommitStage(environmentId: $environmentId)
                  }''',
-              {'input': {
-                  'projectId': project_id,
-                  'environmentId': environment_id,
-                  'serviceId': notification_id,
-                  'variables': {
-                      'DATABASE_URL': database_url,
-                      'REDIS_URL': redis_url,
-                      'ENVIRONMENT': 'production',
-                      'PORT': '8080',
-                      'DOCS_ENABLED': 'false',
-                  },
-                  'skipDeploys': True,
-              }},
-          )
+              {'environmentId': environment_id},
+          )['environmentPatchCommitStage']
 
           state = {
               'project_id': project_id,
@@ -212,7 +187,7 @@ jobs:
           print(f'Production environment verified: {environment_name}')
           print(f'PostgreSQL service discovered: {pg["name"]}')
           print(f'Redis service discovered: {rd["name"]}')
-          print('Notification private database and Redis URLs synchronized without exposing values.')
+          print(f'Railway staged production changes committed: {staged_applied}.')
           PY
 
       - name: Trigger Notification production deployment
@@ -268,7 +243,7 @@ jobs:
                   'environmentId': state['environment_id'],
               },
           )
-          print('Railway Notification deployment triggered with synchronized private URLs.')
+          print('Railway Notification deployment triggered after committing staged changes.')
 
           deployment_id = None
           for _ in range(30):
