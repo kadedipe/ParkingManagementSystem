@@ -59,6 +59,7 @@ jobs:
                   headers={
                       'Content-Type': 'application/json',
                       'Project-Access-Token': token,
+                      'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
                   },
                   method='POST',
               )
@@ -207,7 +208,11 @@ jobs:
               req = urllib.request.Request(
                   api,
                   data=json.dumps({'query': query, 'variables': variables or {}}).encode(),
-                  headers={'Content-Type': 'application/json', 'Project-Access-Token': token},
+                  headers={
+                      'Content-Type': 'application/json',
+                      'Project-Access-Token': token,
+                      'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
+                  },
                   method='POST',
               )
               try:
@@ -294,7 +299,9 @@ jobs:
               'variables': {'input': {'projectId': state['project_id'], 'serviceId': state['notification_id']}},
           }
           req = urllib.request.Request(api, data=json.dumps(payload).encode(), headers={
-              'Content-Type': 'application/json', 'Project-Access-Token': token
+              'Content-Type': 'application/json',
+              'Project-Access-Token': token,
+              'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
           }, method='POST')
           with urllib.request.urlopen(req, timeout=30) as response:
               data = json.load(response).get('data', {})
@@ -312,7 +319,9 @@ jobs:
               'variables': {'deploymentId': deployment_id, 'limit': 200},
           }
           req = urllib.request.Request(api, data=json.dumps(log_payload).encode(), headers={
-              'Content-Type': 'application/json', 'Project-Access-Token': token
+              'Content-Type': 'application/json',
+              'Project-Access-Token': token,
+              'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
           }, method='POST')
           with urllib.request.urlopen(req, timeout=30) as response:
               body = json.load(response)
