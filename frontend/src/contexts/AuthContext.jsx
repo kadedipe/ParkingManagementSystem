@@ -15,22 +15,41 @@ export const AuthProvider = ({ children }) => {
 
   // Load user on mount
   useEffect(() => {
+    const controller = new AbortController();
+    let isMounted = true;
+
     const loadUser = async () => {
       try {
         const token = localStorage.getItem(config.auth.tokenStorageKey);
         if (token) {
-          const userData = await authService.getCurrentUser();
-          setUser(userData);
+          const userData = await authService.getCurrentUser({
+            timeout: 8000,
+            signal: controller.signal,
+          });
+          if (isMounted) {
+            setUser(userData);
+          }
         }
       } catch (err) {
-        console.error('Failed to load user:', err);
-        localStorage.removeItem(config.auth.tokenStorageKey);
+        if (isMounted) {
+          console.error('Failed to load user:', err);
+          authService.clearTokens();
+          authService.clearUser();
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadUser();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, []);
 
   const login = useCallback(async (email, password, rememberMe = false) => {
