@@ -330,7 +330,12 @@ class ErrorBoundary extends Component {
     const { hasError } = this.state;
 
     if (hasError) {
-      if (fallback) return fallback(this.state.error, this.state.errorInfo, this.handleReset);
+      if (typeof fallback === 'function') {
+        return fallback(this.state.error, this.state.errorInfo, this.handleReset);
+      }
+      if (React.isValidElement(fallback)) {
+        return fallback;
+      }
       return this.renderFallbackUI();
     }
 
