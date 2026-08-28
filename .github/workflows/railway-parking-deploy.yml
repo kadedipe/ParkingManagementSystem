@@ -62,7 +62,7 @@ jobs:
               found=[s for s in services if predicate(s['name'].lower())]
               if len(found)!=1: raise SystemExit(f'Expected one {label}; found: '+', '.join(s['name'] for s in found))
               return found[0]
-          parking=one('Parking service',lambda n:n in {'parking','parking-service'} or ('parking' in n and 'frontend' not in n))
+          parking=one('Parking service',lambda n:n in {'parking','parking-service'})
           postgres=one('Postgres service',lambda n:'postgres' in n)
           redis=one('Redis service',lambda n:n=='redis' or 'redis' in n)
           frontend=one('Frontend service',lambda n:'frontend' in n)
