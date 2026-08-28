@@ -128,6 +128,7 @@ function App() {
     }
   }, [isAuthenticated, user, showToast]);
 
+  // Keep routing suspended until AuthContext finishes restoring the session.
   if (authLoading) {
     return <PageLoader />;
   }
