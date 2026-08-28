@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     def validate_database(cls, value: str, info) -> str:
         if info.data.get("ENVIRONMENT") == "production" and value.startswith("sqlite"):
             raise ValueError("DATABASE_URL must point to PostgreSQL in production")
+        if value.startswith("postgres://"):
+            value = "postgresql://" + value[len("postgres://"):]
+        if value.startswith("postgresql://"):
+            value = "postgresql+asyncpg://" + value[len("postgresql://"):]
         return value
 
 
