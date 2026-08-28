@@ -90,7 +90,7 @@ class Settings(BaseSettings):
 
     @validator("DB_PASSWORD")
     def validate_db_password(cls, value, values):
-        if values.get("ENVIRONMENT") == "production" and value == "password":
+        if values.get("ENVIRONMENT") == "production" and value == "password" and not values.get("DATABASE_URL_ENV"):
             raise ValueError("DB_PASSWORD must be configured in production")
         return value
 
