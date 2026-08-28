@@ -16,20 +16,7 @@ export const Layout = ({ variant = 'main', children }) => {
   const isAuthLayout = variant === 'auth';
 
   if (isAuthLayout) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '100vh',
-          bgcolor: 'background.default',
-        }}
-      >
-        <Container maxWidth="sm" sx={{ py: 4 }}>
-          {children || <Outlet />}
-        </Container>
-      </Box>
-    );
+    return children || <Outlet />;
   }
 
   return (
