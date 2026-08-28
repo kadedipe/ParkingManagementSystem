@@ -215,12 +215,16 @@ jobs:
           for role,service in selected.items():
               logs=gql(log_query,{'deploymentId':deployment_ids[role],'limit':300}).get('deploymentLogs') or []
               errors=sum(1 for line in logs if str(line.get('severity','')).upper() in {'ERROR','CRITICAL'})
-              hits=[line for line in logs if fatal.search(str(line.get('message','')))]
-              fatal_hits.extend((service['name'],line) for line in hits)
-              note(f'| {service["name"]} | {len(logs)} | {errors} | {len(hits)} |')
+              hit_indexes=[i for i,line in enumerate(logs) if fatal.search(str(line.get('message','')))]
+              fatal_hits.extend((service['name'],logs,i) for i in hit_indexes)
+              note(f'| {service["name"]} | {len(logs)} | {errors} | {len(hit_indexes)} |')
           if fatal_hits:
-              for service,line in fatal_hits[:10]:
-                  print(f'::error::{service}: {str(line.get("message",""))[:500]}')
+              for service,logs,index in fatal_hits[:10]:
+                  start=max(0,index-4); end=min(len(logs),index+8)
+                  print(f'::group::Fatal log context: {service}')
+                  for line in logs[start:end]:
+                      print('['+str(line.get('severity','INFO'))+'] '+str(line.get('message',''))[:1000])
+                  print('::endgroup::')
               raise SystemExit('Fatal signatures were found in current production deployment logs')
           note('')
           note('No crash, panic, traceback, unhandled-exception, or out-of-memory signatures were found.')
