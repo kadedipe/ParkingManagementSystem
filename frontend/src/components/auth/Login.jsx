@@ -50,7 +50,7 @@ import { styled } from '@mui/material/styles';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 // ============================================================================
@@ -125,7 +125,6 @@ const loginSchema = yup.object().shape({
 export const Login = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
 
   // ==========================================================================
@@ -163,9 +162,6 @@ export const Login = () => {
   // ==========================================================================
   // Effects
   // ==========================================================================
-
-  // Check for redirect URL
-  const from = location.state?.from?.pathname || '/dashboard';
 
   // Load saved email if remember me was checked
   useEffect(() => {
@@ -207,12 +203,8 @@ export const Login = () => {
           localStorage.removeItem('rememberedEmail');
         }
 
+        // AuthContext updates the session. App owns the single post-login redirect.
         setShowSuccess(true);
-        
-        // Navigate after a short delay
-        setTimeout(() => {
-          navigate(from, { replace: true });
-        }, 1000);
       } else {
         throw new Error(result.message || 'Login failed');
       }
@@ -220,7 +212,7 @@ export const Login = () => {
       setError(err.message || 'Invalid email or password. Please try again.');
       setIsSubmitting(false);
     }
-  }, [login, navigate, from]);
+  }, [login]);
 
 
   const handleForgotPassword = () => {
