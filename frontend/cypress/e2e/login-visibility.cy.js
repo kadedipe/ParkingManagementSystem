@@ -7,8 +7,10 @@ describe('login visual accessibility', () => {
       .should('be.visible')
       .then(($card) => {
         expect(getComputedStyle($card[0]).opacity).to.equal('1');
-        const rect = $card[0].getBoundingClientRect();
-        const viewportCenter = window.innerWidth / 2;
+        const card = $card[0];
+        const rect = card.getBoundingClientRect();
+        const appViewportWidth = card.ownerDocument.documentElement.clientWidth;
+        const viewportCenter = appViewportWidth / 2;
         const cardCenter = rect.left + rect.width / 2;
         expect(Math.abs(cardCenter - viewportCenter)).to.be.lessThan(2);
       });
