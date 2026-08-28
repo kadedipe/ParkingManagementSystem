@@ -1,0 +1,228 @@
+name: Railway Frontend Gateway Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/railway-frontend-gateway.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-frontend-production
+  cancel-in-progress: false
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT_NAME: production
+
+jobs:
+  integrate:
+    name: Connect and Deploy Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Checkout production source
+        uses: actions/checkout@v4
+
+      - name: Configure public API Gateway build variables
+        shell: bash
+        run: |
+          test -n "${RAILWAY_TOKEN:-}" || { echo '::error::RAILWAY_TOKEN is not configured'; exit 1; }
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          project_id = os.environ['RAILWAY_PROJECT_ID']
+
+          def gql(query, variables=None):
+              req = urllib.request.Request(api, data=json.dumps({'query': query, 'variables': variables or {}}).encode(), headers={
+                  'Content-Type': 'application/json',
+                  'Project-Access-Token': token,
+                  'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
+              }, method='POST')
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      body = json.load(response)
+              except urllib.error.HTTPError as exc:
+                  raise SystemExit(f'Railway API HTTP {exc.code}: {exc.read().decode("utf-8", "replace")[:1000]}')
+              if body.get('errors'):
+                  raise SystemExit('Railway GraphQL error: ' + '; '.join(e.get('message', 'error') for e in body['errors']))
+              return body['data']
+
+          scope = gql('query { projectToken { projectId environmentId } }')['projectToken']
+          if scope['projectId'] != project_id:
+              raise SystemExit('RAILWAY_TOKEN belongs to another project')
+          project = gql('''query project($id: String!) {
+            project(id: $id) {
+              name
+              services { edges { node { id name } } }
+              environments { edges { node { id name } } }
+            }
+          }''', {'id': project_id})['project']
+          envs = {e['node']['id']: e['node']['name'] for e in project['environments']['edges']}
+          if envs.get(scope['environmentId']) != os.environ['RAILWAY_ENVIRONMENT_NAME']:
+              raise SystemExit('RAILWAY_TOKEN is not scoped to production')
+          services = [e['node'] for e in project['services']['edges']]
+
+          gateways = [s for s in services if 'gateway' in s['name'].lower()]
+          frontends = [s for s in services if 'frontend' in s['name'].lower()]
+          if len(gateways) != 1:
+              raise SystemExit('Expected one gateway; found: ' + ', '.join(s['name'] for s in gateways))
+          if len(frontends) != 1:
+              raise SystemExit('Expected one frontend; found: ' + ', '.join(s['name'] for s in frontends))
+          gateway, frontend = gateways[0], frontends[0]
+
+          deployments = '''query deployments($input: DeploymentListInput!) {
+            deployments(input: $input, first: 1) { edges { node { id status createdAt } } }
+          }'''
+          deploy_input = {'projectId': project_id, 'serviceId': frontend['id']}
+          edges = gql(deployments, {'input': deploy_input})['deployments']['edges']
+          before_id = edges[0]['node']['id'] if edges else None
+
+          dollar = chr(36)
+          domain_ref = dollar + chr(123) * 2 + gateway['name'] + '.RAILWAY_PUBLIC_DOMAIN' + chr(125) * 2
+          values = {
+              'VITE_API_URL': 'https://' + domain_ref,
+              'VITE_WEBSOCKET_URL': 'wss://' + domain_ref + '/ws',
+              'VITE_ANALYTICS_ENABLED': 'false',
+          }
+          mutation = 'mutation variableUpsert(' + dollar + 'input: VariableUpsertInput!) { variableUpsert(input: ' + dollar + 'input) }'
+          for name, value in values.items():
+              gql(mutation, {'input': {
+                  'projectId': project_id,
+                  'environmentId': scope['environmentId'],
+                  'serviceId': frontend['id'],
+                  'name': name,
+                  'value': value,
+                  'skipDeploys': True,
+              }})
+
+          rendered_query = (
+              'query variablesForServiceDeployment('
+              + dollar + 'projectId: String!, ' + dollar + 'environmentId: String!, ' + dollar + 'serviceId: String!) '
+              + '{ variablesForServiceDeployment(projectId: ' + dollar + 'projectId environmentId: '
+              + dollar + 'environmentId serviceId: ' + dollar + 'serviceId) }'
+          )
+          rendered = gql(rendered_query, {
+              'projectId': project_id, 'environmentId': scope['environmentId'], 'serviceId': frontend['id']
+          })['variablesForServiceDeployment'] or {}
+          api_url = str(rendered.get('VITE_API_URL') or '')
+          ws_url = str(rendered.get('VITE_WEBSOCKET_URL') or '')
+          if not api_url.startswith('https://') or '.up.railway.app' not in api_url:
+              raise SystemExit('VITE_API_URL did not render to the public gateway domain')
+          if not ws_url.startswith('wss://') or not ws_url.endswith('/ws'):
+              raise SystemExit('VITE_WEBSOCKET_URL did not render correctly')
+
+          json.dump({
+              'project_id': project_id,
+              'environment_id': scope['environmentId'],
+              'frontend_id': frontend['id'],
+              'before_id': before_id,
+          }, open('/tmp/frontend-state.json', 'w'))
+          print(f'Gateway discovered: {gateway["name"]}')
+          print(f'Frontend discovered: {frontend["name"]}')
+          print('Frontend API and WebSocket build variables rendered successfully.')
+          PY
+
+      - name: Deploy frontend and enforce Railway health gate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, time, urllib.request, urllib.error
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          state = json.load(open('/tmp/frontend-state.json'))
+
+          def gql(query, variables=None):
+              req = urllib.request.Request(api, data=json.dumps({'query': query, 'variables': variables or {}}).encode(), headers={
+                  'Content-Type': 'application/json', 'Project-Access-Token': token,
+                  'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
+              }, method='POST')
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  body = json.load(response)
+              if body.get('errors'):
+                  raise SystemExit('Railway GraphQL error: ' + '; '.join(e.get('message', 'error') for e in body['errors']))
+              return body['data']
+
+          query = '''query deployments($input: DeploymentListInput!) {
+            deployments(input: $input, first: 5) { edges { node { id status createdAt } } }
+          }'''
+          inp = {'projectId': state['project_id'], 'serviceId': state['frontend_id']}
+          gql('''mutation serviceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+            serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+          }''', {'serviceId': state['frontend_id'], 'environmentId': state['environment_id']})
+          deployment_id = None
+          for _ in range(30):
+              edges = gql(query, {'input': inp})['deployments']['edges']
+              if edges and edges[0]['node']['id'] != state.get('before_id'):
+                  deployment_id = edges[0]['node']['id']
+                  break
+              time.sleep(2)
+          if not deployment_id:
+              raise SystemExit('A new frontend deployment did not appear')
+          print(f'Railway frontend deployment ID: {deployment_id}')
+          for _ in range(150):
+              edges = gql(query, {'input': inp})['deployments']['edges']
+              node = next((e['node'] for e in edges if e['node']['id'] == deployment_id), None)
+              if not node:
+                  time.sleep(4); continue
+              status = str(node['status']).upper()
+              print(f'Railway frontend deployment status: {status}')
+              if status == 'SUCCESS':
+                  print('Frontend Railway /healthz gate passed.')
+                  raise SystemExit(0)
+              if status in {'FAILED','CRASHED','REMOVED','REMOVING','SKIPPED'}:
+                  raise SystemExit(f'Frontend deployment failed: {status}')
+              time.sleep(4)
+          raise SystemExit('Timed out waiting for frontend deployment')
+          PY
+
+      - name: Public frontend smoke test
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, time, urllib.request, urllib.error
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          state = json.load(open('/tmp/frontend-state.json'))
+          dollar = chr(36)
+          query = (
+              'query variablesForServiceDeployment(' + dollar + 'projectId: String!, '
+              + dollar + 'environmentId: String!, ' + dollar + 'serviceId: String!) '
+              + '{ variablesForServiceDeployment(projectId: ' + dollar + 'projectId environmentId: '
+              + dollar + 'environmentId serviceId: ' + dollar + 'serviceId) }'
+          )
+          req = urllib.request.Request(api, data=json.dumps({'query': query, 'variables': {
+              'projectId': state['project_id'], 'environmentId': state['environment_id'], 'serviceId': state['frontend_id']
+          }}).encode(), headers={'Content-Type':'application/json','Project-Access-Token':token}, method='POST')
+          with urllib.request.urlopen(req, timeout=30) as response:
+              variables = json.load(response)['data']['variablesForServiceDeployment'] or {}
+          domain = str(variables.get('RAILWAY_PUBLIC_DOMAIN') or '').strip()
+          if not domain:
+              raise SystemExit('Frontend has no Railway public domain')
+          base = 'https://' + domain
+          for path in ('/healthz', '/'):
+              status = 0
+              for _ in range(12):
+                  try:
+                      with urllib.request.urlopen(base + path, timeout=20) as response:
+                          status = response.status
+                  except urllib.error.HTTPError as exc:
+                      status = exc.code
+                  except urllib.error.URLError:
+                      status = 0
+                  if status == 200:
+                      break
+                  time.sleep(5)
+              if status != 200:
+                  raise SystemExit(f'Public frontend {path} returned {status}')
+              print(f'Public frontend {path} returned 200.')
+          print('Frontend production smoke gate passed.')
+          PY
