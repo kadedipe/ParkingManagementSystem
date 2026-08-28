@@ -9,7 +9,7 @@ Environment: `production`
 
 The production release closure and scheduled health monitor pass. The six application services have successful serving deployments, the public frontend and API Gateway respond successfully, and the Gateway reports every private backend healthy.
 
-One recovery gate remains open: the Postgres volume has no native backup or backup schedule. See [Database recovery](#database-recovery).
+One recovery gate remains open: the external logical PostgreSQL backup destination and GitHub repository secrets must be configured. Railway native backups and PITR require the Pro plan, so recovery uses encrypted `pg_dump` artifacts and automated restore drills instead. See [Database recovery](#database-recovery).
 
 ## Production topology
 
@@ -42,7 +42,7 @@ The API Gateway reaches backend services through `.railway.internal` private DNS
 - Each public health endpoint is attempted three times, 20 seconds apart.
 - It verifies frontend health, Gateway health, backend readiness, successful serving deployments, and fatal runtime-log signatures.
 - The ChatGPT `Production Health Watch` provides a secondary hourly condition check.
-- `Production Recovery Audit` runs monthly and verifies native backups, volumes, and rollback candidates.
+- `Production Recovery Audit` runs daily and creates an encrypted logical PostgreSQL backup, enforces retention and freshness, restores it into temporary PostgreSQL, classifies Redis recovery, and verifies rollback candidates.
 
 ### Escalation thresholds
 
@@ -98,34 +98,47 @@ The recovery audit confirmed retained rollback-capable deployments for every app
 5. Wait for the Railway health gate.
 6. Validate the public Gateway `/health` and `/ready` endpoints.
 7. Rerun authenticated production E2E.
-8. If the rollback fails, redeploy the last known-good Git commit using the service-specific Railway workflow.
+8. If the rollbacPostgres is the authoritative data store. Railway native backups and PITR are unavailable on the current plan, so the recovery control is a scheduled logical backup stored outside Railway.
 
-Do not perform routine live rollbacks as tests. The API capability and retained candidates are tested non-destructively; an actual rollback changes production traffic.
+Plan-compatible recovery design:
 
-## Database recovery
+- Daily `pg_dump` in PostgreSQL custom format
+- Client-side AES-256-CBC encryption using PBKDF2 with 200,000 iterations
+- S3-compatible object storage outside Railway
+- Maximum accepted backup age: 26 hours
+- Retention: 30 days, enforced by the workflow
+- Automated `pg_restore` into a temporary PostgreSQL 17 container
+- Non-empty restored-schema assertion
+- Production is never modified during the restore drill
 
-### Postgres
+Required GitHub Actions repository secrets:
 
-Postgres is the authoritative data store and has a private-only connection, which prevents external runners from connecting directly. The Railway volume is `postgres-volume`.
+| Secret | Purpose |
+|---|---|
+| `PRODUCTION_DATABASE_URL` | PostgreSQL connection URL reachable from the GitHub-hosted runner; use a dedicated least-privilege backup account where possible |
+| `BACKUP_ENCRYPTION_PASSPHRASE` | Strong passphrase used to encrypt and test-decrypt backup objects |
+| `BACKUP_AWS_ACCESS_KEY_ID` | S3-compatible write/list/delete credential |
+| `BACKUP_AWS_SECRET_ACCESS_KEY` | S3-compatible secret key |
+| `BACKUP_S3_BUCKET` | Dedicated backup bucket/container name |
+| `BACKUP_S3_REGION` | Storage region |
+| `BACKUP_S3_ENDPOINT` | Custom endpoint for non-AWS S3 providers; leave unset for AWS S3 |
 
-Current recovery audit:
+Required setup:
 
-- Native volume backup: **missing**
-- Scheduled backup: **not configured**
-- Restore mechanism: Railway staged same-project/environment volume restore
-- Restore was not executed against production because it changes the mounted volume and redeploys Postgres
+1. Create a private bucket with public access disabled and provider-side encryption/versioning enabled where available.
+2. Create a dedicated storage credential limited to the bucket prefix `parking-management-system/postgres/` with list, put, head, and delete permissions.
+3. Make Postgres reachable from the GitHub-hosted runner using a TLS-protected Railway TCP proxy or move the backup execution into a private-network Railway worker. Do not expose Postgres through an unrestricted public listener.
+4. Add the repository secrets above without printing their values in logs.
+5. Run `Production Recovery Audit` manually.
+6. Close the recovery gate only after both jobs pass: encrypted backup/restore and Railway rollback readiness.
 
-Required configuration:
+Until these inputs exist, the workflow fails explicitly with a blocked recovery summary. This is intentional and must not be bypassed.
 
-1. Open the Postgres service in Railway.
-2. Open **Backups**.
-3. Create one manual backup.
-4. Enable **Daily** backups (kept six days).
-5. Enable **Weekly** backups (kept one month).
-6. For stronger recovery objectives, enable Postgres point-in-time recovery.
-7. Rerun `Production Recovery Audit`.
+Recommended objectives:
 
-Railway stages volume restores for review before deployment. Follow the [Railway backup documentation](https://docs.railway.com/volumes/backups) and [Postgres backup and restore guide](https://docs.railway.com/guides/postgres-backups-restores).
+- RPO: 24 hours with the daily logical backup.
+- RTO: 60 minutes until timed application recovery drills prove a lower value.
+ilway.com/volumes/backups) and [Postgres backup and restore guide](https://docs.railway.com/guides/postgres-backups-restores).
 
 Recommended objectives:
 
