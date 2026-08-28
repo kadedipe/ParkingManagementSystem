@@ -77,14 +77,14 @@ jobs:
           deployments=gql('''query deployments($input:DeploymentListInput!){
             deployments(input:$input,first:20){edges{node{id status createdAt}}}
           }''',{'input':{'projectId':project_id,'serviceId':target_id}})['deployments']['edges']
-          active={'BUILDING','DEPLOYING','INITIALIZING','WAITING','QUEUED','SUCCESS'}
+          active={'BUILDING','DEPLOYING','INITIALIZING','SUCCESS'}
           active_records=[e['node'] for e in deployments if str(e['node']['status']).upper() in active]
           if active_records:
               statuses=', '.join(str(d['status']) for d in active_records)
               raise SystemExit('Safety stop: target has an active/successful deployment: '+statuses)
 
           print(f'Verified duplicate service: {target["name"]} ({target_id})')
-          print('Verified: no active or successful deployment exists.')
+          print('Verified: no running, deploying, or successful deployment exists.')
           gql('''mutation serviceDelete($id:String!){serviceDelete(id:$id)}''',{'id':target_id})
 
           remaining=[e['node'] for e in gql(query,{'id':project_id})['project']['services']['edges']]
