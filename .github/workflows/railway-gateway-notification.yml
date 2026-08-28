@@ -102,6 +102,10 @@ jobs:
           if len(parking_candidates) != 1:
               raise SystemExit('Expected exactly one Railway Parking service')
           parking = parking_candidates[0]
+          vehicle_candidates = [s for s in services if s['name'].lower() in {'vehicle', 'vehicle-service'}]
+          if len(vehicle_candidates) != 1:
+              raise SystemExit('Expected exactly one Railway Vehicle service')
+          vehicle = vehicle_candidates[0]
 
           deployments_query = '''query deployments($input: DeploymentListInput!) {
                                    deployments(input: $input, first: 1) {
@@ -123,6 +127,7 @@ jobs:
           for name, value in (
               ('NOTIFICATION_SERVICE_URL', private_url(notification)),
               ('PARKING_SERVICE_URL', private_url(parking)),
+              ('VEHICLE_SERVICE_URL', private_url(vehicle)),
           ):
               gql(mutation, {'input': {
                   'projectId': expected_project,
@@ -149,10 +154,13 @@ jobs:
           })['variablesForServiceDeployment'] or {}
           url = str(rendered.get('NOTIFICATION_SERVICE_URL') or '')
           parking_url = str(rendered.get('PARKING_SERVICE_URL') or '')
+          vehicle_url = str(rendered.get('VEHICLE_SERVICE_URL') or '')
           if not url.startswith('http://') or '.railway.internal' not in url:
               raise SystemExit('Railway did not render the gateway Notification private URL')
           if not parking_url.startswith('http://') or '.railway.internal' not in parking_url:
               raise SystemExit('Railway did not render the gateway Parking private URL')
+          if not vehicle_url.startswith('http://') or '.railway.internal' not in vehicle_url:
+              raise SystemExit('Railway did not render the gateway Vehicle private URL')
 
           with open('/tmp/gateway-state.json', 'w') as fh:
               json.dump({
@@ -164,7 +172,8 @@ jobs:
           print(f'Gateway discovered: {gateway["name"]}')
           print(f'Notification discovered: {notification["name"]}')
           print(f'Parking discovered: {parking["name"]}')
-          print('Notification and Parking URLs rendered to Railway private DNS.')
+          print(f'Vehicle discovered: {vehicle["name"]}')
+          print('Notification, Parking, and Vehicle URLs rendered to Railway private DNS.')
           PY
 
       - name: Deploy API Gateway and enforce health gate
