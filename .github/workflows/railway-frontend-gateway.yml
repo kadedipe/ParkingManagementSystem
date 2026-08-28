@@ -98,12 +98,6 @@ jobs:
                   'numReplicas': 1,
               },
           })
-          commit_staged = (
-              'mutation environmentPatchCommitStaged('
-              + dollar + 'environmentId: String!) { environmentPatchCommitStaged('
-              + 'environmentId: ' + dollar + 'environmentId) }'
-          )
-          gql(commit_staged, {'environmentId': scope['environmentId']})
           print('Frontend Railway service root, start command, and healthcheck repaired.')
 
           deployments = '''query deployments($input: DeploymentListInput!) {
