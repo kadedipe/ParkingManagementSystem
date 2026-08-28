@@ -98,6 +98,10 @@ jobs:
           if len(candidates) != 1:
               raise SystemExit('Expected exactly one Railway gateway service; found: ' + ', '.join(s['name'] for s in candidates))
           gateway = candidates[0]
+          parking_candidates = [s for s in services if s['name'].lower() in {'parking', 'parking-service'}]
+          if len(parking_candidates) != 1:
+              raise SystemExit('Expected exactly one Railway Parking service')
+          parking = parking_candidates[0]
 
           deployments_query = '''query deployments($input: DeploymentListInput!) {
                                    deployments(input: $input, first: 1) {
@@ -109,20 +113,25 @@ jobs:
           before_id = before[0]['node']['id'] if before else None
 
           dollar = chr(36)
-          private_domain_ref = dollar + chr(123) * 2 + notification['name'] + '.RAILWAY_PRIVATE_DOMAIN' + chr(125) * 2
-          notification_url = 'http://' + private_domain_ref + ':8080'
+          def private_url(service):
+              domain_ref = dollar + chr(123) * 2 + service['name'] + '.RAILWAY_PRIVATE_DOMAIN' + chr(125) * 2
+              return 'http://' + domain_ref + ':8080'
           mutation = (
               'mutation variableUpsert(' + dollar + 'input: VariableUpsertInput!) '
               '{ variableUpsert(input: ' + dollar + 'input) }'
           )
-          gql(mutation, {'input': {
-              'projectId': expected_project,
-              'environmentId': scope['environmentId'],
-              'serviceId': gateway['id'],
-              'name': 'NOTIFICATION_SERVICE_URL',
-              'value': notification_url,
-              'skipDeploys': True,
-          }})
+          for name, value in (
+              ('NOTIFICATION_SERVICE_URL', private_url(notification)),
+              ('PARKING_SERVICE_URL', private_url(parking)),
+          ):
+              gql(mutation, {'input': {
+                  'projectId': expected_project,
+                  'environmentId': scope['environmentId'],
+                  'serviceId': gateway['id'],
+                  'name': name,
+                  'value': value,
+                  'skipDeploys': True,
+              }})
 
           rendered_query = (
               'query variablesForServiceDeployment('
@@ -139,8 +148,11 @@ jobs:
               'serviceId': gateway['id'],
           })['variablesForServiceDeployment'] or {}
           url = str(rendered.get('NOTIFICATION_SERVICE_URL') or '')
+          parking_url = str(rendered.get('PARKING_SERVICE_URL') or '')
           if not url.startswith('http://') or '.railway.internal' not in url:
               raise SystemExit('Railway did not render the gateway Notification private URL')
+          if not parking_url.startswith('http://') or '.railway.internal' not in parking_url:
+              raise SystemExit('Railway did not render the gateway Parking private URL')
 
           with open('/tmp/gateway-state.json', 'w') as fh:
               json.dump({
@@ -151,7 +163,8 @@ jobs:
               }, fh)
           print(f'Gateway discovered: {gateway["name"]}')
           print(f'Notification discovered: {notification["name"]}')
-          print('NOTIFICATION_SERVICE_URL rendered to Railway private DNS.')
+          print(f'Parking discovered: {parking["name"]}')
+          print('Notification and Parking URLs rendered to Railway private DNS.')
           PY
 
       - name: Deploy API Gateway and enforce health gate
