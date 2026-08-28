@@ -224,3 +224,80 @@ jobs:
               time.sleep(4)
           raise SystemExit('Timed out waiting for API Gateway deployment')
           PY
+
+      - name: Public gateway and Notification route smoke test
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, time, urllib.request, urllib.error
+
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          state = json.load(open('/tmp/gateway-state.json'))
+          dollar = chr(36)
+
+          def gql(query, variables=None):
+              req = urllib.request.Request(
+                  api,
+                  data=json.dumps({'query': query, 'variables': variables or {}}).encode(),
+                  headers={
+                      'Content-Type': 'application/json',
+                      'Project-Access-Token': token,
+                      'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
+                  },
+                  method='POST',
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  body = json.load(response)
+              if body.get('errors'):
+                  raise SystemExit('Railway GraphQL error: ' + '; '.join(e.get('message', 'error') for e in body['errors']))
+              return body['data']
+
+          query = (
+              'query variablesForServiceDeployment('
+              + dollar + 'projectId: String!, '
+              + dollar + 'environmentId: String!, '
+              + dollar + 'serviceId: String!) { variablesForServiceDeployment('
+              + 'projectId: ' + dollar + 'projectId '
+              + 'environmentId: ' + dollar + 'environmentId '
+              + 'serviceId: ' + dollar + 'serviceId) }'
+          )
+          variables = gql(query, {
+              'projectId': state['project_id'],
+              'environmentId': state['environment_id'],
+              'serviceId': state['gateway_id'],
+          })['variablesForServiceDeployment'] or {}
+          domain = str(variables.get('RAILWAY_PUBLIC_DOMAIN') or '').strip()
+          if not domain:
+              raise SystemExit('API Gateway has no Railway public domain')
+          base = 'https://' + domain
+
+          def request_status(path):
+              req = urllib.request.Request(base + path, headers={'User-Agent': 'ParkingManagementSystem-Smoke/1.0'})
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      return response.status
+              except urllib.error.HTTPError as exc:
+                  return exc.code
+              except urllib.error.URLError:
+                  return 0
+
+          health_status = 0
+          for _ in range(12):
+              health_status = request_status('/health')
+              if health_status == 200:
+                  break
+              time.sleep(5)
+          if health_status != 200:
+              raise SystemExit(f'Public API Gateway /health returned {health_status}')
+
+          notification_status = request_status('/notifications')
+          if notification_status in {0, 502, 503, 504}:
+              raise SystemExit(f'Gateway could not reach Notification; route returned {notification_status}')
+          if notification_status not in {200, 401, 403}:
+              raise SystemExit(f'Unexpected Notification route status: {notification_status}')
+
+          print('Public API Gateway /health returned 200.')
+          print(f'Notification route reached its upstream and returned expected status {notification_status}.')
+          print('Gateway-to-Notification end-to-end smoke gate passed.')
+          PY
