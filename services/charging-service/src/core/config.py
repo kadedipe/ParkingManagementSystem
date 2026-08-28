@@ -1,4 +1,4 @@
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +21,15 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            value = "postgresql://" + value[len("postgres://"):]
+        if value.startswith("postgresql://"):
+            value = "postgresql+asyncpg://" + value[len("postgresql://"):]
+        return value
 
     @model_validator(mode="after")
     def validate_production(self):
