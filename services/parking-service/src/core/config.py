@@ -35,10 +35,12 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = Field(default=20, env="DB_POOL_SIZE")
     DB_MAX_OVERFLOW: int = Field(default=40, env="DB_MAX_OVERFLOW")
     DB_ECHO: bool = Field(default=False, env="DB_ECHO")
+    DATABASE_URL_ENV: Optional[str] = Field(default=None, alias="DATABASE_URL")
     REDIS_HOST: str = Field(default="localhost", env="REDIS_HOST")
     REDIS_PORT: int = Field(default=6379, env="REDIS_PORT")
     REDIS_PASSWORD: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
     REDIS_DB: int = Field(default=0, env="REDIS_DB")
+    REDIS_URL_ENV: Optional[str] = Field(default=None, alias="REDIS_URL")
     CACHE_ENABLED: bool = Field(default=True, env="CACHE_ENABLED")
     CACHE_TTL: int = Field(default=3600, env="CACHE_TTL")
     CACHE_MAX_SIZE: int = Field(default=1000, env="CACHE_MAX_SIZE")
@@ -64,10 +66,19 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        if self.DATABASE_URL_ENV:
+            url = self.DATABASE_URL_ENV
+            if url.startswith("postgres://"):
+                url = "postgresql://" + url[len("postgres://"):]
+            if url.startswith("postgresql://"):
+                url = "postgresql+asyncpg://" + url[len("postgresql://"):]
+            return url
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @property
     def REDIS_URL(self) -> str:
+        if self.REDIS_URL_ENV:
+            return self.REDIS_URL_ENV
         auth = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
         return f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
