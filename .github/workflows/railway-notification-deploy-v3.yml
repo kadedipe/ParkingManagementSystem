@@ -192,6 +192,35 @@ jobs:
               'environmentId': environment_id,
               'serviceId': notification_id,
           })['variablesForServiceDeployment'] or {}
+
+          parking_services = [s for s in services if s['name'].lower() in {'parking', 'parking-service'}]
+          if len(parking_services) != 1:
+              raise SystemExit('Expected exactly one Parking service for shared JWT synchronization')
+          parking_rendered = gql(rendered_query, {
+              'projectId': project_id,
+              'environmentId': environment_id,
+              'serviceId': parking_services[0]['id'],
+          })['variablesForServiceDeployment'] or {}
+          shared_jwt = str(parking_rendered.get('JWT_SECRET') or '')
+          if len(shared_jwt) < 32:
+              raise SystemExit('Parking does not expose a strong shared JWT_SECRET')
+          gql(variable_upsert, {'input': {
+              'projectId': project_id,
+              'environmentId': environment_id,
+              'serviceId': notification_id,
+              'name': 'JWT_SECRET',
+              'value': shared_jwt,
+              'skipDeploys': True,
+          }})
+          rendered = gql(rendered_query, {
+              'projectId': project_id,
+              'environmentId': environment_id,
+              'serviceId': notification_id,
+          })['variablesForServiceDeployment'] or {}
+          if str(rendered.get('JWT_SECRET') or '') != shared_jwt:
+              raise SystemExit('Notification JWT_SECRET synchronization failed')
+          print('Notification JWT_SECRET synchronized with Parking.')
+
           database_url = str(rendered.get('DATABASE_URL') or '').strip()
           redis_url = str(rendered.get('REDIS_URL') or '').strip()
           if not database_url.startswith(('postgres://', 'postgresql://')):
