@@ -79,6 +79,33 @@ jobs:
               raise SystemExit('Expected one frontend; found: ' + ', '.join(s['name'] for s in frontends))
           gateway, frontend = gateways[0], frontends[0]
 
+          dollar = chr(36)
+          instance_update = (
+              'mutation serviceInstanceUpdate('
+              + dollar + 'serviceId: String!, '
+              + dollar + 'environmentId: String!, '
+              + dollar + 'input: ServiceInstanceUpdateInput!) { '
+              + 'serviceInstanceUpdate(serviceId: ' + dollar + 'serviceId environmentId: '
+              + dollar + 'environmentId input: ' + dollar + 'input) }'
+          )
+          gql(instance_update, {
+              'serviceId': frontend['id'],
+              'environmentId': scope['environmentId'],
+              'input': {
+                  'rootDirectory': '/frontend',
+                  'startCommand': '/docker-entrypoint.sh',
+                  'healthcheckPath': '/healthz',
+                  'numReplicas': 1,
+              },
+          })
+          commit_staged = (
+              'mutation environmentPatchCommitStaged('
+              + dollar + 'environmentId: String!) { environmentPatchCommitStaged('
+              + 'environmentId: ' + dollar + 'environmentId) }'
+          )
+          gql(commit_staged, {'environmentId': scope['environmentId']})
+          print('Frontend Railway service root, start command, and healthcheck repaired.')
+
           deployments = '''query deployments($input: DeploymentListInput!) {
             deployments(input: $input, first: 1) { edges { node { id status createdAt } } }
           }'''
@@ -86,7 +113,6 @@ jobs:
           edges = gql(deployments, {'input': deploy_input})['deployments']['edges']
           before_id = edges[0]['node']['id'] if edges else None
 
-          dollar = chr(36)
           domain_ref = dollar + chr(123) * 2 + gateway['name'] + '.RAILWAY_PUBLIC_DOMAIN' + chr(125) * 2
           values = {
               'VITE_API_URL': 'https://' + domain_ref,
