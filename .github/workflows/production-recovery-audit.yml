@@ -99,17 +99,9 @@ jobs:
               recovery[label]={'service':service,'volume':instances[service['id']]['volume'],'instance':vi,
                                'backups':backups,'schedules':schedules}
 
-          # A real Postgres backup is required. Create one only when none exists.
+          # Backup creation requires owner-level Railway authorization. Audit without mutating production.
           pg=recovery['Postgres']
-          if not pg['backups']:
-              gql('''mutation backup($id:String!){volumeInstanceBackupCreate(volumeInstanceId:$id)}''',
-                  {'id':pg['instance']['id']})
-              for _ in range(30):
-                  time.sleep(5)
-                  pg['backups']=gql(backupq,{'id':pg['instance']['id']})['volumeInstanceBackupList'] or []
-                  if pg['backups']:break
-          if not pg['backups']:raise SystemExit('Postgres has no Railway volume backup')
-          latest=max(pg['backups'],key=lambda b:str(b.get('createdAt') or ''))
+          latest=max(pg['backups'],key=lambda b:str(b.get('createdAt') or '')) if pg['backups'] else None
 
           deployments='''query deployments($input:DeploymentListInput!){
             deployments(input:$input,first:100){edges{node{id status createdAt canRollback canRedeploy}}}
@@ -138,9 +130,9 @@ jobs:
 
           note('# Production recovery audit');note('')
           note(f'- Postgres volume: {pg["volume"]["name"]}')
-          note(f'- Postgres latest native backup: {latest.get("createdAt")}')
+          note(f'- Postgres latest native backup: {latest.get("createdAt") if latest else "MISSING"}')
           note(f'- Postgres backup schedules configured: {len(pg["schedules"])}')
-          note('- Postgres restore capability: native backup is eligible for same-project/environment staged restore')
+          note('- Postgres restore mechanism: same-project/environment staged volume restore')
           rd=recovery['Redis']
           note(f'- Redis volume: {rd["volume"]["name"]}')
           note(f'- Redis native backups present: {len(rd["backups"])}')
@@ -154,5 +146,8 @@ jobs:
           note('| Role | Service | Candidate deployment |');note('|---|---|---|')
           for role,item in rollback.items():note(f'| {role} | {item["service"]} | {item["candidate"]} |')
           note('');note('Restore was deliberately not applied to production; Railway restores are staged and require an incident change decision.')
+          if not latest:
+              note('');note('**BLOCKED: create a Postgres native volume backup and enable a daily schedule in Railway.**')
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as fh:fh.write('\n'.join(report)+'\n')
+          if not latest:raise SystemExit('Postgres native backup gate failed: no backup exists')
           PY
