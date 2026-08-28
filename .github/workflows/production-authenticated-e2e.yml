@@ -1,0 +1,102 @@
+name: Production Authenticated E2E Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/production-authenticated-e2e.yml'
+
+permissions:
+  contents: read
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+
+jobs:
+  smoke:
+    name: Auth and Cross-Service Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Run authenticated production flow
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, time, urllib.request, urllib.error, uuid
+          api=os.environ['RAILWAY_API_URL'];token=os.environ['RAILWAY_TOKEN'];project_id=os.environ['RAILWAY_PROJECT_ID']
+
+          def gql(q,v=None):
+              req=urllib.request.Request(api,data=json.dumps({'query':q,'variables':v or {}}).encode(),headers={
+                'Content-Type':'application/json','Project-Access-Token':token,'User-Agent':'ParkingManagementSystem-E2E/1.0'},method='POST')
+              with urllib.request.urlopen(req,timeout=30) as response:body=json.load(response)
+              if body.get('errors'):raise SystemExit('; '.join(e.get('message','error') for e in body['errors']))
+              return body['data']
+
+          scope=gql('query { projectToken { projectId environmentId } }')['projectToken']
+          project=gql('''query project($id:String!){project(id:$id){services{edges{node{id name}}}}}''',{'id':project_id})['project']
+          services=[e['node'] for e in project['services']['edges']]
+          gateways=[s for s in services if 'gateway' in s['name'].lower()]
+          if len(gateways)!=1:raise SystemExit('Expected one Gateway')
+          gateway=gateways[0];dollar=chr(36)
+          q=('query variablesForServiceDeployment('+dollar+'projectId:String!,'+dollar+'environmentId:String!,'+
+             dollar+'serviceId:String!){variablesForServiceDeployment(projectId:'+dollar+'projectId environmentId:'+
+             dollar+'environmentId serviceId:'+dollar+'serviceId)}')
+          variables=gql(q,{'projectId':project_id,'environmentId':scope['environmentId'],'serviceId':gateway['id']})['variablesForServiceDeployment'] or {}
+          domain=str(variables.get('RAILWAY_PUBLIC_DOMAIN') or '')
+          if not domain:raise SystemExit('Gateway has no public domain')
+          base='https://'+domain
+
+          def request(method,path,data=None,bearer=None,expected=(200,)):
+              body=None if data is None else json.dumps(data).encode()
+              headers={'User-Agent':'ParkingManagementSystem-E2E/1.0','Accept':'application/json'}
+              if body is not None:headers['Content-Type']='application/json'
+              if bearer:headers['Authorization']='Bearer '+bearer
+              req=urllib.request.Request(base+path,data=body,headers=headers,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as response:
+                      status=response.status;raw=response.read().decode('utf-8','replace')
+              except urllib.error.HTTPError as exc:
+                  status=exc.code;raw=exc.read().decode('utf-8','replace')
+              if status not in expected:
+                  raise SystemExit(f'{method} {path} returned {status}: {raw[:500]}')
+              try:return status,json.loads(raw) if raw else None
+              except json.JSONDecodeError:return status,raw
+
+          suffix=str(int(time.time()))+'-'+uuid.uuid4().hex[:8]
+          username='e2e-'+suffix
+          email=username+'@example.invalid'
+          password='E2E-'+uuid.uuid4().hex+'!Aa9'
+          _,registered=request('POST','/auth/register',{
+              'username':username,'email':email,'password':password,'full_name':'Disposable E2E User'
+          },expected=(200,))
+          access_token=registered.get('access_token') if isinstance(registered,dict) else None
+          if not access_token:raise SystemExit('Registration returned no access token')
+          print('Auth registration and token issuance passed.')
+
+          request('GET','/auth/me',bearer=access_token,expected=(200,))
+          print('Authenticated Parking identity lookup passed.')
+
+          plate='E2E'+uuid.uuid4().hex[:8].upper()
+          _,vehicle=request('POST','/vehicles',{
+              'name':'Disposable E2E Vehicle','plate_number':plate,'make':'Test','model':'Smoke',
+              'year':2026,'is_ev':True,'is_default':False
+          },bearer=access_token,expected=(201,))
+          vehicle_id=vehicle.get('id') if isinstance(vehicle,dict) else None
+          if not vehicle_id:raise SystemExit('Vehicle creation returned no id')
+          request('GET','/vehicles',bearer=access_token,expected=(200,))
+          request('DELETE','/vehicles/'+vehicle_id,bearer=access_token,expected=(204,))
+          print('Authenticated Vehicle create/list/delete flow passed.')
+
+          request('GET','/notifications',bearer=access_token,expected=(200,))
+          print('Authenticated Notification query passed.')
+
+          request('GET','/charging-stations/',bearer=access_token,expected=(200,))
+          print('Charging station route passed.')
+
+          request('GET','/ready',expected=(200,))
+          print('Full authenticated cross-service production smoke gate passed.')
+          PY
