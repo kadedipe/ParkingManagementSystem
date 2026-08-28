@@ -1,0 +1,93 @@
+name: Railway Production Readiness Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/railway-production-readiness.yml'
+
+permissions:
+  contents: read
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT_NAME: production
+
+jobs:
+  audit:
+    name: Audit Gateway Service Readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Query production readiness
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          project_id = os.environ['RAILWAY_PROJECT_ID']
+
+          def gql(query, variables=None):
+              req = urllib.request.Request(api, data=json.dumps({'query':query,'variables':variables or {}}).encode(), headers={
+                  'Content-Type':'application/json','Project-Access-Token':token,
+                  'User-Agent':'ParkingManagementSystem-GitHub-Actions/1.0'
+              }, method='POST')
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  body=json.load(response)
+              if body.get('errors'):
+                  raise SystemExit('; '.join(e.get('message','GraphQL error') for e in body['errors']))
+              return body['data']
+
+          scope=gql('query { projectToken { projectId environmentId } }')['projectToken']
+          if scope['projectId'] != project_id:
+              raise SystemExit('RAILWAY_TOKEN belongs to another project')
+          project=gql('''query project($id:String!){
+            project(id:$id){services{edges{node{id name}}} environments{edges{node{id name}}}}
+          }''',{'id':project_id})['project']
+          envs={e['node']['id']:e['node']['name'] for e in project['environments']['edges']}
+          if envs.get(scope['environmentId']) != os.environ['RAILWAY_ENVIRONMENT_NAME']:
+              raise SystemExit('RAILWAY_TOKEN is not scoped to production')
+          services=[e['node'] for e in project['services']['edges']]
+          gateways=[s for s in services if 'gateway' in s['name'].lower()]
+          if len(gateways)!=1:
+              raise SystemExit('Expected exactly one API Gateway')
+          gateway=gateways[0]
+
+          dollar=chr(36)
+          query=(
+              'query variablesForServiceDeployment('+dollar+'projectId:String!,'+
+              dollar+'environmentId:String!,'+dollar+'serviceId:String!){variablesForServiceDeployment('+
+              'projectId:'+dollar+'projectId environmentId:'+dollar+'environmentId serviceId:'+
+              dollar+'serviceId)}'
+          )
+          variables=gql(query,{'projectId':project_id,'environmentId':scope['environmentId'],'serviceId':gateway['id']})['variablesForServiceDeployment'] or {}
+          domain=str(variables.get('RAILWAY_PUBLIC_DOMAIN') or '').strip()
+          if not domain:
+              raise SystemExit('API Gateway has no public domain')
+          url='https://'+domain+'/ready'
+          req=urllib.request.Request(url,headers={'User-Agent':'ParkingManagementSystem-Readiness/1.0'})
+          try:
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  status=response.status
+                  body=response.read().decode('utf-8','replace')
+          except urllib.error.HTTPError as exc:
+              status=exc.code
+              body=exc.read().decode('utf-8','replace')
+          print('Gateway /ready HTTP status:',status)
+          print('Gateway /ready response:',body)
+          try:
+              payload=json.loads(body)
+          except json.JSONDecodeError:
+              raise SystemExit('Gateway /ready did not return JSON')
+          states=payload.get('services') or {}
+          for name in ('parking','vehicle','notification','charging'):
+              print(f'{name}: {states.get(name,"missing")}')
+          if status != 200:
+              raise SystemExit('Production backend is not fully ready; see service states above')
+          print('All Gateway upstream services are ready.')
+          PY
