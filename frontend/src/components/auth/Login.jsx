@@ -26,7 +26,6 @@ import {
   Button,
   FormControlLabel,
   Checkbox,
-  Divider,
   Alert,
   CircularProgress,
   IconButton,
@@ -37,21 +36,13 @@ import {
   alpha,
   Fade,
   Slide,
-  Grid,
-  Card,
-  CardContent,
 } from '@mui/material';
 import {
   Email as EmailIcon,
   Lock as LockIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
-  Google as GoogleIcon,
-  Facebook as FacebookIcon,
-  Apple as AppleIcon,
   ArrowForward as ArrowForwardIcon,
-  Login as LoginIcon,
-  PersonAdd as PersonAddIcon,
   Home as HomeIcon,
   LocalParking as ParkingIcon,
 } from '@mui/icons-material';
@@ -98,17 +89,6 @@ const BrandLogo = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(3),
 }));
 
-const SocialButton = styled(Button)(({ theme }) => ({
-  borderRadius: theme.shape.borderRadius * 2,
-  padding: theme.spacing(1.5),
-  borderColor: theme.palette.divider,
-  color: theme.palette.text.primary,
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.primary.main, 0.04),
-    borderColor: theme.palette.primary.main,
-  },
-}));
-
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiOutlinedInput-root': {
     borderRadius: theme.shape.borderRadius * 2,
@@ -146,7 +126,7 @@ export const Login = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loading, error: authError } = useAuth();
+  const { login } = useAuth();
 
   // ==========================================================================
   // State
@@ -177,7 +157,8 @@ export const Login = () => {
     mode: 'onChange',
   });
 
-  const rememberMe = watch('rememberMe');
+  const emailValue = watch('email');
+  const passwordValue = watch('password');
 
   // ==========================================================================
   // Effects
@@ -200,7 +181,7 @@ export const Login = () => {
     if (error) {
       setError(null);
     }
-  }, [watch('email'), watch('password')]);
+  }, [emailValue, passwordValue]);
 
   // ==========================================================================
   // Handlers
@@ -241,10 +222,6 @@ export const Login = () => {
     }
   }, [login, navigate, from]);
 
-  const handleSocialLogin = (provider) => {
-    // Social login implementation
-    setError(`Social login with ${provider} is not implemented yet.`);
-  };
 
   const handleForgotPassword = () => {
     navigate('/forgot-password');
@@ -417,52 +394,6 @@ export const Login = () => {
               </Button>
             </Stack>
           </form>
-
-          {/* Divider */}
-          <Box sx={{ my: 3 }}>
-            <Divider>
-              <Typography variant="caption" color="text.secondary">
-                OR CONTINUE WITH
-              </Typography>
-            </Divider>
-          </Box>
-
-          {/* Social Login */}
-          <Grid container spacing={2}>
-            <Grid item xs={4}>
-              <SocialButton
-                fullWidth
-                variant="outlined"
-                startIcon={<GoogleIcon />}
-                onClick={() => handleSocialLogin('Google')}
-                disabled={isSubmitting || showSuccess}
-              >
-                Google
-              </SocialButton>
-            </Grid>
-            <Grid item xs={4}>
-              <SocialButton
-                fullWidth
-                variant="outlined"
-                startIcon={<FacebookIcon />}
-                onClick={() => handleSocialLogin('Facebook')}
-                disabled={isSubmitting || showSuccess}
-              >
-                Facebook
-              </SocialButton>
-            </Grid>
-            <Grid item xs={4}>
-              <SocialButton
-                fullWidth
-                variant="outlined"
-                startIcon={<AppleIcon />}
-                onClick={() => handleSocialLogin('Apple')}
-                disabled={isSubmitting || showSuccess}
-              >
-                Apple
-              </SocialButton>
-            </Grid>
-          </Grid>
 
           {/* Register Link */}
           <Box sx={{ mt: 3, textAlign: 'center' }}>
