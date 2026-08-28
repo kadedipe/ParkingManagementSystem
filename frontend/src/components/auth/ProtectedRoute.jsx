@@ -11,11 +11,11 @@ import { useAuth } from '../../hooks/useAuth';
  * Protected route component that requires authentication
  */
 export const ProtectedRoute = ({ children }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
   // Show loading state while checking authentication
-  if (isLoading) {
+  if (loading) {
     return (
       <Box
         display="flex"
