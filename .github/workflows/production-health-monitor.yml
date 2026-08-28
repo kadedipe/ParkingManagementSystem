@@ -1,0 +1,125 @@
+name: Production Health Monitor
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/production-health-monitor.yml'
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-health-monitor
+  cancel-in-progress: true
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+
+jobs:
+  health:
+    name: Production Health and Fatal Log Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Check production
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, re, time, urllib.error, urllib.request
+
+          api=os.environ['RAILWAY_API_URL']; token=os.environ['RAILWAY_TOKEN']; project_id=os.environ['RAILWAY_PROJECT_ID']
+          def gql(q,v=None):
+              req=urllib.request.Request(api,data=json.dumps({'query':q,'variables':v or {}}).encode(),headers={
+                'Content-Type':'application/json','Project-Access-Token':token,
+                'User-Agent':'ParkingManagementSystem-Health-Monitor/1.0'},method='POST')
+              with urllib.request.urlopen(req,timeout=30) as response: body=json.load(response)
+              if body.get('errors'): raise SystemExit('; '.join(e.get('message','error') for e in body['errors']))
+              return body['data']
+          def get(url):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'ParkingManagementSystem-Health-Monitor/1.0'}),timeout=20) as r:
+                      return r.status,r.read().decode('utf-8','replace')
+              except urllib.error.HTTPError as e: return e.code,e.read().decode('utf-8','replace')
+              except Exception as e: return 0,str(e)
+
+          scope=gql('query { projectToken { projectId environmentId } }')['projectToken']
+          if scope['projectId']!=project_id: raise SystemExit('Token belongs to another project')
+          services=[e['node'] for e in gql('''query project($id:String!){project(id:$id){
+            services{edges{node{id name}}}
+          }}''',{'id':project_id})['project']['services']['edges']]
+          def one(label,predicate):
+              found=[s for s in services if predicate(s['name'].lower())]
+              if len(found)!=1: raise SystemExit(f'Expected one {label}')
+              return found[0]
+          roles={
+            'frontend':one('frontend',lambda n:'frontend' in n),
+            'gateway':one('gateway',lambda n:'gateway' in n),
+            'parking':one('parking',lambda n:n in {'parking','parking-service'}),
+            'vehicle':one('vehicle',lambda n:n in {'vehicle','vehicle-service'}),
+            'notification':one('notification',lambda n:n in {'notification','notification-service'}),
+            'charging':one('charging',lambda n:n in {'charging','charging-service'}),
+          }
+          dollar=chr(36)
+          vq=('query variablesForServiceDeployment('+dollar+'projectId:String!,'+dollar+'environmentId:String!,'+
+              dollar+'serviceId:String!){variablesForServiceDeployment(projectId:'+dollar+'projectId environmentId:'+
+              dollar+'environmentId serviceId:'+dollar+'serviceId)}')
+          def domain(service):
+              v=gql(vq,{'projectId':project_id,'environmentId':scope['environmentId'],'serviceId':service['id']})['variablesForServiceDeployment'] or {}
+              return str(v.get('RAILWAY_PUBLIC_DOMAIN') or '')
+          frontend='https://'+domain(roles['frontend']); gateway='https://'+domain(roles['gateway'])
+          if frontend=='https://' or gateway=='https://': raise SystemExit('Public production domain missing')
+
+          checks=[('Frontend',frontend+'/healthz'),('Gateway',gateway+'/health'),('Readiness',gateway+'/ready')]
+          bodies={}
+          failures=[]
+          for label,url in checks:
+              status=0;body=''
+              for attempt in range(3):
+                  status,body=get(url)
+                  if status==200: break
+                  time.sleep(20)
+              bodies[label]=body
+              print(f'{label}: HTTP {status}')
+              if status!=200: failures.append(f'{label} returned HTTP {status} after 3 attempts')
+
+          if not failures:
+              try: ready=json.loads(bodies['Readiness'])
+              except json.JSONDecodeError: failures.append('Gateway /ready returned invalid JSON');ready={}
+              states=ready.get('services') or {}
+              for role in ('parking','vehicle','notification','charging'):
+                  state=str(states.get(role,'')).lower()
+                  print(f'{role}: {state}')
+                  if state not in {'healthy','ready','ok'}: failures.append(f'{role} readiness is {state or "missing"}')
+
+          deployments='''query deployments($input:DeploymentListInput!){
+            deployments(input:$input,first:100){edges{node{id status}}}
+          }'''
+          logsq='''query logs($deploymentId:String!,$limit:Int){
+            deploymentLogs(deploymentId:$deploymentId,limit:$limit){message severity timestamp}
+          }'''
+          fatal=re.compile(r'\b(traceback|fatal|panic|unhandled exception|out of memory|segmentation fault)\b',re.I)
+          for role,service in roles.items():
+              nodes=[e['node'] for e in gql(deployments,{'input':{'projectId':project_id,'serviceId':service['id']}})['deployments']['edges']]
+              serving=next((d for d in nodes if str(d['status']).upper()=='SUCCESS'),None)
+              if not serving:
+                  failures.append(f'{service["name"]} has no successful deployment');continue
+              logs=gql(logsq,{'deploymentId':serving['id'],'limit':300}).get('deploymentLogs') or []
+              hits=[str(line.get('message','')) for line in logs if fatal.search(str(line.get('message','')))]
+              if hits: failures.append(f'{service["name"]} has {len(hits)} fatal log signature(s)')
+
+          if failures:
+              for failure in failures: print('::error::P1 production alert: '+failure)
+              raise SystemExit('Production health monitor failed')
+          print('Production health monitor passed: entry points, readiness, deployments, and fatal logs are healthy.')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as fh:
+              fh.write('# Production health monitor\n\n')
+              fh.write('- Frontend health: passed\n- Gateway health: passed\n- Backend readiness: passed\n')
+              fh.write('- Serving deployments: passed\n- Fatal log scan: passed\n')
+          PY
