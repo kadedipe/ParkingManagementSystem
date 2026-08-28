@@ -57,7 +57,10 @@ import { useAuth } from '../../hooks/useAuth';
 // ============================================================================
 
 const LoginContainer = styled(Box)(({ theme }) => ({
-  minHeight: '100vh',
+  minHeight: '100dvh',
+  width: '100%',
+  boxSizing: 'border-box',
+  overflowX: 'hidden',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -72,7 +75,8 @@ const LoginCard = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
   borderRadius: theme.shape.borderRadius * 3,
   maxWidth: 480,
-  width: '100%',
+  width: 'min(100%, 480px)',
+  margin: 'auto',
   boxShadow: theme.shadows[10],
   [theme.breakpoints.down('sm')]: {
     padding: theme.spacing(3),
@@ -89,13 +93,14 @@ const BrandLogo = styled(Box)(({ theme }) => ({
 }));
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
+  '& .MuiInputLabel-root.MuiInputLabel-shrink': {
+    backgroundColor: theme.palette.background.paper,
+    paddingInline: theme.spacing(0.5),
+  },
   '& .MuiOutlinedInput-root': {
     borderRadius: theme.shape.borderRadius * 2,
-    backgroundColor: alpha(theme.palette.common.white, 0.8),
-    '&:hover': {
-      backgroundColor: theme.palette.common.white,
-    },
-    '&.Mui-focused': {
+    backgroundColor: alpha(theme.palette.common.white, 0.92),
+    '&:hover, &.Mui-focused': {
       backgroundColor: theme.palette.common.white,
     },
   },
@@ -164,7 +169,7 @@ export const Login = () => {
 
   // Load saved email if remember me was checked
   useEffect(() => {
-    const savedEmail = localStorage.getItem('rememberedEmail');
+    const savedEmail = localStorage.getItem('remembered_email');
     if (savedEmail) {
       setValue('email', savedEmail);
       setValue('rememberMe', true);
@@ -192,20 +197,20 @@ export const Login = () => {
       setError(null);
 
       // Attempt login
-      const result = await login(data.email, data.password);
+      const result = await login(data.email, data.password, data.rememberMe);
       
       if (result.success) {
         // Save email if remember me is checked
         if (data.rememberMe) {
-          localStorage.setItem('rememberedEmail', data.email);
+          localStorage.setItem('remembered_email', data.email);
         } else {
-          localStorage.removeItem('rememberedEmail');
+          localStorage.removeItem('remembered_email');
         }
 
         // AuthContext updates the session. App owns the single post-login redirect.
         setShowSuccess(true);
       } else {
-        throw new Error(result.message || 'Login failed');
+        throw new Error(result.error || 'Login failed');
       }
     } catch (err) {
       setError(err.message || 'Invalid email or password. Please try again.');
@@ -282,6 +287,7 @@ export const Login = () => {
                     fullWidth
                     label="Email Address"
                     placeholder="Enter your email"
+                    InputLabelProps={{ shrink: true }}
                     error={!!errors.email}
                     helperText={errors.email?.message}
                     disabled={isSubmitting || showSuccess}
@@ -307,6 +313,7 @@ export const Login = () => {
                     label="Password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
+                    InputLabelProps={{ shrink: true }}
                     error={!!errors.password}
                     helperText={errors.password?.message}
                     disabled={isSubmitting || showSuccess}
@@ -372,6 +379,12 @@ export const Login = () => {
                   borderRadius: theme.shape.borderRadius * 2,
                   py: 1.5,
                   position: 'relative',
+                  '&.Mui-disabled': {
+                    backgroundColor: theme.palette.grey[300],
+                    color: theme.palette.grey[700],
+                    opacity: 1,
+                    cursor: 'not-allowed',
+                  },
                 }}
               >
                 {isSubmitting ? (
