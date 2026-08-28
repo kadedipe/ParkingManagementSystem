@@ -4,15 +4,10 @@
 
 # parking-management-system/.github/workflows/cd.yml
 
-name: Continuous Deployment
+name: Legacy AWS Kubernetes Deployment (Manual Only)
 
+# Disabled for automatic pushes: production is deployed by the Railway workflows.
 on:
-  push:
-    branches:
-      - main
-      - develop
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       environment:
