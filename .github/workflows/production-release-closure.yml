@@ -141,11 +141,15 @@ jobs:
 
           frontend_vars=variables(selected['frontend']['id'],environment_id)
           gateway_vars=variables(selected['gateway']['id'],environment_id)
+          charging_vars=variables(selected['charging']['id'],environment_id)
           frontend_domain=str(frontend_vars.get('RAILWAY_PUBLIC_DOMAIN') or '').strip()
           gateway_domain=str(gateway_vars.get('RAILWAY_PUBLIC_DOMAIN') or '').strip()
+          charging_domain=str(charging_vars.get('RAILWAY_PUBLIC_DOMAIN') or '').strip()
           api_url=str(frontend_vars.get('VITE_API_URL') or '').rstrip('/')
           if not frontend_domain or not gateway_domain:
               raise SystemExit('Frontend or Gateway public domain is missing')
+          if charging_domain:
+              raise SystemExit(f'Charging must remain private, but has public domain: {charging_domain}')
           gateway_base='https://'+gateway_domain
           frontend_base='https://'+frontend_domain
           if api_url != gateway_base:
@@ -154,6 +158,13 @@ jobs:
           note('## Frontend-to-backend user journey')
           note('')
           note('- Frontend API configuration matches the production Gateway.')
+          note('- Charging has no public domain and is reachable only through the Gateway.')
+
+          _,gateway_status,_=http('GET',gateway_base+'/',expected=(200,))
+          if not isinstance(gateway_status,dict) or gateway_status.get('status') != 'healthy':
+              raise SystemExit(f'Gateway root status is invalid: {gateway_status!r}')
+          if gateway_status.get('health') != '/health' or gateway_status.get('readiness') != '/ready':
+              raise SystemExit(f'Gateway root health links are invalid: {gateway_status!r}')
 
           _,_,html=http('GET',frontend_base+'/',expected=(200,))
           http('GET',frontend_base+'/healthz',expected=(200,))
