@@ -210,7 +210,7 @@ api.interceptors.response.use(
     // Handle network errors
     if (!error.response) {
       // Network error - add to queue if we're offline
-      if (!navigator.onLine) {
+      if (!navigator.onLine && originalRequest?.queueWhenOffline !== false) {
         return new Promise((resolve, reject) => {
           requestQueue.push({
             request: originalRequest,
@@ -227,7 +227,11 @@ api.interceptors.response.use(
     }
     
     // Handle 401 Unauthorized - Token expired
-    if (error.response.status === 401 && !originalRequest._retry) {
+    if (
+      error.response.status === 401 &&
+      !originalRequest._retry &&
+      originalRequest?.skipAuthRefresh !== true
+    ) {
       originalRequest._retry = true;
       
       if (isRefreshing) {
@@ -322,7 +326,9 @@ const retryRequest = async (requestFn, retries = MAX_RETRIES, delay = RETRY_DELA
 const apiService = {
   // Core methods
   get: (url, config = {}) => {
-    return retryRequest(() => api.get(url, config));
+    const { retry = true, ...requestConfig } = config;
+    const request = () => api.get(url, requestConfig);
+    return retry === false ? request() : retryRequest(request);
   },
   
   post: (url, data, config = {}) => {
