@@ -34,7 +34,6 @@ import {
   Stack,
   useTheme,
   alpha,
-  Fade,
   Slide,
 } from '@mui/material';
 import {
@@ -229,7 +228,6 @@ export const Login = () => {
 
   return (
     <LoginContainer>
-      <Fade in timeout={800}>
         <LoginCard elevation={3}>
           {/* Brand Logo */}
           <BrandLogo>
@@ -426,7 +424,6 @@ export const Login = () => {
             Version {import.meta.env.VITE_APP_VERSION || '1.0.0'}
           </Typography>
         </LoginCard>
-      </Fade>
     </LoginContainer>
   );
 };
