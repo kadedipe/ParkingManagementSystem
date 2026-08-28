@@ -110,7 +110,7 @@ npx expo start
 
 ## Production deployment
 
-Read [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact Railway service matrix, variables, migration commands, networking model and GitHub workflow.
+Read [`DEPLOYMENT.md`](./DEPLOYMENT.md) for deployment configuration and [`PRODUCTION_RUNBOOK.md`](./PRODUCTION_RUNBOOK.md) for health checks, alerts, backup recovery, rollback, and incident procedures.
 
 ## Security
 
