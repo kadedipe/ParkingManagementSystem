@@ -161,8 +161,14 @@ class AuthService {
   /**
    * Fetch and persist the authenticated user.
    */
-  async getCurrentUser() {
-    const response = await apiService.get('/auth/me');
+  async getCurrentUser({ timeout = 8000, signal } = {}) {
+    const response = await apiService.get('/auth/me', {
+      timeout,
+      signal,
+      retry: false,
+      queueWhenOffline: false,
+      skipAuthRefresh: true,
+    });
     const user = response.data?.user ?? response.data;
 
     if (!user) {
