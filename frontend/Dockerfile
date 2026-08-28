@@ -23,7 +23,10 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh && mkdir -p /var/cache/nginx /var/run /var/log/nginx && chown -R app:app /usr/share/nginx/html /var/cache/nginx /var/run /var/log/nginx /etc/nginx
+RUN sed -i 's|pid[[:space:]]*/var/run/nginx.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf && \
+    chmod +x /docker-entrypoint.sh && \
+    mkdir -p /var/cache/nginx /var/log/nginx && \
+    chown -R app:app /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx
 USER app
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:${PORT:-8080}/healthz || exit 1
