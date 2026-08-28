@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: env.VITE_BUILD_OUTPUT_DIR || 'dist',
       sourcemap: !isProduction,
+      manifest: true,
       // Use Vite's built-in minifier so production builds do not require
       // the optional terser package to be installed.
       minify: isProduction ? 'esbuild' : false,
@@ -54,10 +55,11 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'mui-vendor': ['@mui/material', '@mui/icons-material', '@mui/x-data-grid'],
+            'mui-vendor': ['@mui/material', '@mui/icons-material'],
             'state-vendor': ['@tanstack/react-query'],
             'chart-vendor': ['recharts'],
-            'form-vendor': ['formik', 'react-hook-form', 'yup'],
+            'react-hook-form-vendor': ['react-hook-form', '@hookform/resolvers', 'yup'],
+            'formik-vendor': ['formik'],
             'utils-vendor': ['axios', 'date-fns'],
           },
         },
