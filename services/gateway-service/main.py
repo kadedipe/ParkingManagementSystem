@@ -51,6 +51,18 @@ app.add_middleware(
 )
 
 
+@app.get("/", tags=["meta"])
+async def root():
+    return {
+        "status": "healthy",
+        "service": "api-gateway",
+        "version": app.version,
+        "health": "/health",
+        "readiness": "/ready",
+        "documentation": "/docs",
+    }
+
+
 @app.get("/health", tags=["health"])
 async def health():
     return {"status": "healthy", "service": "api-gateway"}
