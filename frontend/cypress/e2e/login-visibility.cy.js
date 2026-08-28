@@ -7,6 +7,10 @@ describe('login visual accessibility', () => {
       .should('be.visible')
       .then(($card) => {
         expect(getComputedStyle($card[0]).opacity).to.equal('1');
+        const rect = $card[0].getBoundingClientRect();
+        const viewportCenter = window.innerWidth / 2;
+        const cardCenter = rect.left + rect.width / 2;
+        expect(Math.abs(cardCenter - viewportCenter)).to.be.lessThan(2);
       });
 
     cy.get('input[placeholder="Enter your email"]')
@@ -23,6 +27,15 @@ describe('login visual accessibility', () => {
         expect(target === input || input.contains(target)).to.equal(true);
       })
       .click()
-      .should('be.focused');
+      .should('be.focused')
+      .type('not-an-email')
+      .blur();
+
+    cy.contains('Please enter a valid email address').should('be.visible');
+    cy.contains('button', 'Sign In').should('be.disabled');
+    cy.get('input[placeholder="Enter your password"]').should('be.visible');
+    cy.contains('button', 'Forgot password?').should('be.visible');
+    cy.contains('button', 'Sign up').should('be.visible');
+    cy.contains('a', 'Back to Home').should('have.attr', 'href', '/');
   });
 });
