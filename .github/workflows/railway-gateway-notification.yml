@@ -1,0 +1,226 @@
+name: Railway Gateway Notification Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'services/gateway-service/**'
+      - '.github/workflows/railway-gateway-notification.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-gateway-production
+  cancel-in-progress: false
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT_NAME: production
+  NOTIFICATION_SERVICE_ID: b71282ac-fa06-4060-8e60-d220f38cc67b
+
+jobs:
+  integrate:
+    name: Connect and Deploy API Gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Checkout production source
+        uses: actions/checkout@v4
+
+      - name: Configure private Notification route
+        shell: bash
+        run: |
+          test -n "${RAILWAY_TOKEN:-}" || { echo '::error::RAILWAY_TOKEN is not configured'; exit 1; }
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          expected_project = os.environ['RAILWAY_PROJECT_ID']
+          expected_environment = os.environ['RAILWAY_ENVIRONMENT_NAME']
+          notification_id = os.environ['NOTIFICATION_SERVICE_ID']
+
+          def gql(query, variables=None):
+              req = urllib.request.Request(
+                  api,
+                  data=json.dumps({'query': query, 'variables': variables or {}}).encode(),
+                  headers={
+                      'Content-Type': 'application/json',
+                      'Project-Access-Token': token,
+                      'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
+                  },
+                  method='POST',
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      body = json.load(response)
+              except urllib.error.HTTPError as exc:
+                  raise SystemExit(f'Railway API HTTP {exc.code}: {exc.read().decode("utf-8", "replace")[:1000]}')
+              if body.get('errors'):
+                  raise SystemExit('Railway GraphQL error: ' + '; '.join(e.get('message', 'error') for e in body['errors']))
+              return body['data']
+
+          scope = gql('query { projectToken { projectId environmentId } }')['projectToken']
+          if scope['projectId'] != expected_project:
+              raise SystemExit('RAILWAY_TOKEN belongs to a different Railway project')
+
+          project = gql(
+              '''query project($id: String!) {
+                   project(id: $id) {
+                     name
+                     services { edges { node { id name } } }
+                     environments { edges { node { id name } } }
+                   }
+                 }''',
+              {'id': expected_project},
+          )['project']
+          services = [edge['node'] for edge in project['services']['edges']]
+          environments = {edge['node']['id']: edge['node']['name'] for edge in project['environments']['edges']}
+          if environments.get(scope['environmentId']) != expected_environment:
+              raise SystemExit('RAILWAY_TOKEN is not scoped to production')
+
+          notification = next((s for s in services if s['id'] == notification_id), None)
+          if not notification:
+              raise SystemExit('Notification service was not found')
+
+          candidates = [
+              s for s in services
+              if s['id'] != notification_id and (
+                  s['name'].lower() in {'api-gateway', 'gateway', 'gateway-service'}
+                  or 'gateway' in s['name'].lower()
+              )
+          ]
+          if len(candidates) != 1:
+              raise SystemExit('Expected exactly one Railway gateway service; found: ' + ', '.join(s['name'] for s in candidates))
+          gateway = candidates[0]
+
+          deployments_query = '''query deployments($input: DeploymentListInput!) {
+                                   deployments(input: $input, first: 1) {
+                                     edges { node { id status createdAt } }
+                                   }
+                                 }'''
+          deploy_input = {'projectId': expected_project, 'serviceId': gateway['id']}
+          before = gql(deployments_query, {'input': deploy_input})['deployments']['edges']
+          before_id = before[0]['node']['id'] if before else None
+
+          dollar = chr(36)
+          private_domain_ref = dollar + chr(123) * 2 + notification['name'] + '.RAILWAY_PRIVATE_DOMAIN' + chr(125) * 2
+          notification_url = 'http://' + private_domain_ref + ':8080'
+          mutation = (
+              'mutation variableUpsert(' + dollar + 'input: VariableUpsertInput!) '
+              '{ variableUpsert(input: ' + dollar + 'input) }'
+          )
+          gql(mutation, {'input': {
+              'projectId': expected_project,
+              'environmentId': scope['environmentId'],
+              'serviceId': gateway['id'],
+              'name': 'NOTIFICATION_SERVICE_URL',
+              'value': notification_url,
+              'skipDeploys': True,
+          }})
+
+          rendered_query = (
+              'query variablesForServiceDeployment('
+              + dollar + 'projectId: String!, '
+              + dollar + 'environmentId: String!, '
+              + dollar + 'serviceId: String!) { variablesForServiceDeployment('
+              + 'projectId: ' + dollar + 'projectId '
+              + 'environmentId: ' + dollar + 'environmentId '
+              + 'serviceId: ' + dollar + 'serviceId) }'
+          )
+          rendered = gql(rendered_query, {
+              'projectId': expected_project,
+              'environmentId': scope['environmentId'],
+              'serviceId': gateway['id'],
+          })['variablesForServiceDeployment'] or {}
+          url = str(rendered.get('NOTIFICATION_SERVICE_URL') or '')
+          if not url.startswith('http://') or '.railway.internal' not in url:
+              raise SystemExit('Railway did not render the gateway Notification private URL')
+
+          with open('/tmp/gateway-state.json', 'w') as fh:
+              json.dump({
+                  'project_id': expected_project,
+                  'environment_id': scope['environmentId'],
+                  'gateway_id': gateway['id'],
+                  'before_id': before_id,
+              }, fh)
+          print(f'Gateway discovered: {gateway["name"]}')
+          print(f'Notification discovered: {notification["name"]}')
+          print('NOTIFICATION_SERVICE_URL rendered to Railway private DNS.')
+          PY
+
+      - name: Deploy API Gateway and enforce health gate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, time, urllib.request, urllib.error
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+          state = json.load(open('/tmp/gateway-state.json'))
+
+          def gql(query, variables=None):
+              req = urllib.request.Request(
+                  api,
+                  data=json.dumps({'query': query, 'variables': variables or {}}).encode(),
+                  headers={
+                      'Content-Type': 'application/json',
+                      'Project-Access-Token': token,
+                      'User-Agent': 'ParkingManagementSystem-GitHub-Actions/1.0',
+                  },
+                  method='POST',
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      body = json.load(response)
+              except urllib.error.HTTPError as exc:
+                  raise SystemExit(f'Railway API HTTP {exc.code}: {exc.read().decode("utf-8", "replace")[:1000]}')
+              if body.get('errors'):
+                  raise SystemExit('Railway GraphQL error: ' + '; '.join(e.get('message', 'error') for e in body['errors']))
+              return body['data']
+
+          query = '''query deployments($input: DeploymentListInput!) {
+                       deployments(input: $input, first: 5) {
+                         edges { node { id status createdAt } }
+                       }
+                     }'''
+          inp = {'projectId': state['project_id'], 'serviceId': state['gateway_id']}
+          gql(
+              '''mutation serviceInstanceDeploy($serviceId: String!, $environmentId: String!) {
+                   serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId)
+                 }''',
+              {'serviceId': state['gateway_id'], 'environmentId': state['environment_id']},
+          )
+          print('API Gateway deployment triggered.')
+
+          deployment_id = None
+          for _ in range(30):
+              edges = gql(query, {'input': inp})['deployments']['edges']
+              if edges and edges[0]['node']['id'] != state.get('before_id'):
+                  deployment_id = edges[0]['node']['id']
+                  break
+              time.sleep(2)
+          if not deployment_id:
+              raise SystemExit('A new gateway deployment did not appear')
+          print(f'Railway gateway deployment ID: {deployment_id}')
+
+          for _ in range(150):
+              edges = gql(query, {'input': inp})['deployments']['edges']
+              node = next((e['node'] for e in edges if e['node']['id'] == deployment_id), None)
+              if not node:
+                  time.sleep(4)
+                  continue
+              status = str(node['status']).upper()
+              print(f'Railway gateway deployment status: {status}')
+              if status == 'SUCCESS':
+                  print('API Gateway Railway /health gate passed.')
+                  raise SystemExit(0)
+              if status in {'FAILED', 'CRASHED', 'REMOVED', 'REMOVING', 'SKIPPED'}:
+                  raise SystemExit(f'API Gateway deployment failed: {status}')
+              time.sleep(4)
+          raise SystemExit('Timed out waiting for API Gateway deployment')
+          PY
