@@ -72,6 +72,7 @@ async def ready():
 
 
 def resolve(path: str):
+    trailing_slash = path.endswith("/")
     parts = path.strip("/").split("/")
     first = parts[0] if parts else ""
     if first == "v1" and len(parts) > 1:
@@ -82,6 +83,8 @@ def resolve(path: str):
     if not service:
         return None
     target = f"/v1/{first}" + (("/" + "/".join(rest)) if rest else "")
+    if trailing_slash and not target.endswith("/"):
+        target += "/"
     return URLS[service].rstrip("/") + target
 
 
