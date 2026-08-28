@@ -51,7 +51,7 @@ describe('login visual accessibility', () => {
       .then(($input) => {
         const input = $input[0];
         const rect = input.getBoundingClientRect();
-        const target = document.elementFromPoint(
+        const target = input.ownerDocument.elementFromPoint(
           rect.left + rect.width / 2,
           rect.top + rect.height / 2,
         );
