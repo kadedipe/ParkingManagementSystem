@@ -226,3 +226,44 @@ jobs:
               print(f'Public frontend {path} returned 200.')
           print('Frontend production smoke gate passed.')
           PY
+
+      - name: Print Railway frontend logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          if not os.path.exists('/tmp/frontend-state.json'):
+              raise SystemExit(0)
+          state = json.load(open('/tmp/frontend-state.json'))
+          api = os.environ['RAILWAY_API_URL']
+          token = os.environ['RAILWAY_TOKEN']
+
+          def call(payload):
+              req = urllib.request.Request(api, data=json.dumps(payload).encode(), headers={
+                  'Content-Type':'application/json', 'Project-Access-Token':token
+              }, method='POST')
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+
+          body = call({
+              'query': '''query deployments($input: DeploymentListInput!) {
+                deployments(input: $input, first: 1) { edges { node { id status } } }
+              }''',
+              'variables': {'input': {'projectId':state['project_id'], 'serviceId':state['frontend_id']}}
+          })
+          edges = body.get('data',{}).get('deployments',{}).get('edges',[])
+          if not edges:
+              raise SystemExit(0)
+          deployment_id = edges[0]['node']['id']
+          for field in ('buildLogs', 'deploymentLogs'):
+              payload = {
+                  'query': 'query logs($deploymentId: String!, $limit: Int) { ' + field
+                           + '(deploymentId: $deploymentId, limit: $limit) { timestamp message severity } }',
+                  'variables': {'deploymentId':deployment_id, 'limit':300}
+              }
+              result = call(payload)
+              print('--- ' + field + ' ---')
+              for line in result.get('data',{}).get(field,[]) or []:
+                  print('[' + str(line.get('severity','INFO')) + '] ' + str(line.get('message','')))
+          PY
