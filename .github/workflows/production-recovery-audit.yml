@@ -1,0 +1,185 @@
+name: Production Recovery Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/production-recovery-audit.yml'
+  schedule:
+    - cron: '17 3 1 * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-recovery-audit
+  cancel-in-progress: false
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT_NAME: production
+
+jobs:
+  recovery:
+    name: Backup Restore and Rollback Readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      restore-postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: restore-only
+          POSTGRES_DB: restore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d restore_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      PGPASSWORD: restore-only
+    steps:
+      - name: Install recovery clients
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client redis-tools
+
+      - name: Discover production recovery targets
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+
+          api=os.environ['RAILWAY_API_URL']; token=os.environ['RAILWAY_TOKEN']; project_id=os.environ['RAILWAY_PROJECT_ID']
+          def gql(q,v=None):
+              req=urllib.request.Request(api,data=json.dumps({'query':q,'variables':v or {}}).encode(),headers={
+                  'Content-Type':'application/json','Project-Access-Token':token,
+                  'User-Agent':'ParkingManagementSystem-Recovery-Audit/1.0'},method='POST')
+              with urllib.request.urlopen(req,timeout=30) as response: body=json.load(response)
+              if body.get('errors'): raise SystemExit('; '.join(e.get('message','error') for e in body['errors']))
+              return body['data']
+
+          scope=gql('query { projectToken { projectId environmentId } }')['projectToken']
+          if scope['projectId']!=project_id: raise SystemExit('Token belongs to another project')
+          project=gql('''query project($id:String!){project(id:$id){
+            services{edges{node{id name}}} environments{edges{node{id name}}}
+          }}''',{'id':project_id})['project']
+          envs={e['node']['id']:e['node']['name'] for e in project['environments']['edges']}
+          if envs.get(scope['environmentId'])!=os.environ['RAILWAY_ENVIRONMENT_NAME']:
+              raise SystemExit('Token is not scoped to production')
+          services=[e['node'] for e in project['services']['edges']]
+
+          def one(label,predicate):
+              found=[s for s in services if predicate(s['name'].lower())]
+              if len(found)!=1: raise SystemExit(f'Expected one {label}; found: '+', '.join(s['name'] for s in found))
+              return found[0]
+          postgres=one('Postgres',lambda n:'postgres' in n)
+          redis=one('Redis',lambda n:n=='redis' or 'redis' in n)
+          roles={
+            'frontend':one('frontend',lambda n:'frontend' in n),
+            'gateway':one('gateway',lambda n:'gateway' in n),
+            'parking':one('parking',lambda n:n in {'parking','parking-service'}),
+            'vehicle':one('vehicle',lambda n:n in {'vehicle','vehicle-service'}),
+            'notification':one('notification',lambda n:n in {'notification','notification-service'}),
+            'charging':one('charging',lambda n:n in {'charging','charging-service'}),
+          }
+
+          dollar=chr(36)
+          vars_query=('query variablesForServiceDeployment('+dollar+'projectId:String!,'+dollar+'environmentId:String!,'+
+            dollar+'serviceId:String!){variablesForServiceDeployment(projectId:'+dollar+'projectId environmentId:'+
+            dollar+'environmentId serviceId:'+dollar+'serviceId)}')
+          def rendered(service):
+              return gql(vars_query,{'projectId':project_id,'environmentId':scope['environmentId'],'serviceId':service['id']})['variablesForServiceDeployment'] or {}
+
+          pgvars=rendered(postgres); redisvars=rendered(redis)
+          pgurl=str(pgvars.get('DATABASE_PUBLIC_URL') or pgvars.get('DATABASE_URL') or '')
+          redisurl=str(redisvars.get('REDIS_PUBLIC_URL') or redisvars.get('REDIS_URL') or '')
+          if '.railway.internal' in pgurl or not pgurl.startswith(('postgres://','postgresql://')):
+              raise SystemExit('Postgres has no usable public recovery URL')
+          if '.railway.internal' in redisurl or not redisurl.startswith(('redis://','rediss://')):
+              raise SystemExit('Redis has no usable public recovery URL')
+
+          deployments='''query deployments($input:DeploymentListInput!){
+            deployments(input:$input,first:100){edges{node{id status createdAt canRollback canRedeploy}}}
+          }'''
+          rollback={}
+          for role,service in roles.items():
+              edges=gql(deployments,{'input':{'projectId':project_id,'serviceId':service['id']}})['deployments']['edges']
+              nodes=[e['node'] for e in edges]
+              serving=next((d for d in nodes if str(d['status']).upper()=='SUCCESS'),None)
+              candidate=next((d for d in nodes if d.get('canRollback')),None)
+              if not serving: raise SystemExit(f'{service["name"]} has no successful serving deployment')
+              if not candidate: raise SystemExit(f'{service["name"]} has no rollback-capable retained deployment')
+              rollback[role]={'service_name':service['name'],'serving_id':serving['id'],'rollback_id':candidate['id']}
+
+          public={}
+          for role in ('frontend','gateway'):
+              rv=rendered(roles[role])
+              domain=str(rv.get('RAILWAY_PUBLIC_DOMAIN') or '')
+              if not domain: raise SystemExit(f'{role} has no public domain')
+              public[role]='https://'+domain
+
+          state={'postgres_url':pgurl,'redis_url':redisurl,'rollback':rollback,'public':public}
+          with open('/tmp/recovery-state.json','w') as fh: json.dump(state,fh)
+          with open(os.environ['GITHUB_ENV'],'a') as fh:
+              fh.write('POSTGRES_PUBLIC_URL='+pgurl+'\n')
+              fh.write('REDIS_PUBLIC_URL='+redisurl+'\n')
+          print('Production Postgres and Redis recovery endpoints discovered.')
+          print('Rollback-capable retained deployments found for all six application services.')
+          print('Frontend URL:',public['frontend'])
+          print('Gateway URL:',public['gateway'])
+          PY
+
+      - name: Validate Postgres dump and isolated restore
+        shell: bash
+        run: |
+          set +x
+          pg_dump "$POSTGRES_PUBLIC_URL" --format=custom --no-owner --no-acl --file=/tmp/production.dump
+          test -s /tmp/production.dump
+          pg_restore --host=127.0.0.1 --port=5432 --username=postgres --dbname=restore_test             --no-owner --no-acl /tmp/production.dump
+          TABLE_COUNT="$(psql --host=127.0.0.1 --port=5432 --username=postgres --dbname=restore_test             --tuples-only --no-align --command="SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema');")"
+          test "${TABLE_COUNT:-0}" -gt 0
+          echo "Postgres dump created and restored into an isolated PostgreSQL 17 instance."
+          echo "Restored application table count: $TABLE_COUNT"
+          rm -f /tmp/production.dump
+
+      - name: Validate Redis recovery expectations
+        shell: bash
+        run: |
+          set +x
+          RESPONSE="$(redis-cli -u "$REDIS_PUBLIC_URL" --no-auth-warning PING)"
+          test "$RESPONSE" = "PONG"
+          DBSIZE="$(redis-cli -u "$REDIS_PUBLIC_URL" --no-auth-warning DBSIZE | tr -d '\r')"
+          POLICY="$(redis-cli -u "$REDIS_PUBLIC_URL" --no-auth-warning CONFIG GET maxmemory-policy | tail -n 1 | tr -d '\r')"
+          echo "Redis connectivity passed; current key count: $DBSIZE"
+          echo "Redis eviction policy: ${POLICY:-unknown}"
+          echo "Recovery expectation validated: Redis is cache/session acceleration, while PostgreSQL remains authoritative."
+
+      - name: Publish recovery audit
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          state=json.load(open('/tmp/recovery-state.json'))
+          lines=[
+            '# Production recovery audit','',
+            '- Postgres logical dump: passed',
+            '- Postgres isolated restore: passed',
+            '- Redis connectivity and recovery classification: passed',
+            '- Rollback-capable retained deployment: passed for all services','',
+            '## Public entry points','',
+            f'- Frontend: {state["public"]["frontend"]}',
+            f'- API Gateway: {state["public"]["gateway"]}','','## Rollback candidates','',
+            '| Role | Railway service | Candidate deployment |','|---|---|---|'
+          ]
+          for role,item in state['rollback'].items():
+              lines.append(f'| {role} | {item["service_name"]} | {item["rollback_id"]} |')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as fh: fh.write('\n'.join(lines)+'\n')
+          print('\n'.join(lines))
+          PY
