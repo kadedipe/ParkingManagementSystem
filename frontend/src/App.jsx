@@ -129,7 +129,7 @@ function App() {
   }, [isAuthenticated, user, showToast]);
 
   if (authLoading) {
-    return <LoadingFallback />;
+    return <PageLoader />;
   }
 
   // ==========================================================================
