@@ -221,7 +221,7 @@ jobs:
           )
           req = urllib.request.Request(api, data=json.dumps({'query': query, 'variables': {
               'projectId': state['project_id'], 'environmentId': state['environment_id'], 'serviceId': state['frontend_id']
-          }}).encode(), headers={'Content-Type':'application/json','Project-Access-Token':token}, method='POST')
+          }}).encode(), headers={'Content-Type':'application/json','Project-Access-Token':token,'User-Agent':'ParkingManagementSystem-GitHub-Actions/1.0'}, method='POST')
           with urllib.request.urlopen(req, timeout=30) as response:
               variables = json.load(response)['data']['variablesForServiceDeployment'] or {}
           domain = str(variables.get('RAILWAY_PUBLIC_DOMAIN') or '').strip()
