@@ -74,7 +74,7 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { themeMode } = useAppTheme();
   const { showToast } = useNotifications();
   const { trackPerformance } = usePerformance();
@@ -127,6 +127,10 @@ function App() {
       }
     }
   }, [isAuthenticated, user, showToast]);
+
+  if (authLoading) {
+    return <LoadingFallback />;
+  }
 
   // ==========================================================================
   // Route Configuration
