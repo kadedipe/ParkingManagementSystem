@@ -25,7 +25,15 @@ DEFAULT_URLS = {
     "charging": "http://charging-service:8080",
 }
 URLS = {k: os.getenv(f"{k.upper()}_SERVICE_URL", v) for k, v in DEFAULT_URLS.items()}
-CORS = [x.strip() for x in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if x.strip()]
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173,"
+    "https://frontend-production-fcc8.up.railway.app"
+)
+CORS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
 
 client: httpx.AsyncClient | None = None
 
