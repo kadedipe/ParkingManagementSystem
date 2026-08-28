@@ -33,17 +33,17 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (email, password, rememberMe = false) => {
     try {
       setError(null);
-      const response = await authService.login(email, password);
+      const response = await authService.login(email, password, rememberMe);
       
       if (response.success) {
         localStorage.setItem(config.auth.tokenStorageKey, response.token);
         setUser(response.user);
         return { success: true };
       } else {
-        throw new Error(response.message || 'Login failed');
+        throw new Error(response.error || 'Login failed');
       }
     } catch (err) {
       setError(err.message);
