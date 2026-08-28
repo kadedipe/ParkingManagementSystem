@@ -106,6 +106,10 @@ jobs:
           if len(vehicle_candidates) != 1:
               raise SystemExit('Expected exactly one Railway Vehicle service')
           vehicle = vehicle_candidates[0]
+          charging_candidates = [s for s in services if s['name'].lower() in {'charging', 'charging-service'}]
+          if len(charging_candidates) != 1:
+              raise SystemExit('Expected exactly one Railway Charging service')
+          charging = charging_candidates[0]
 
           deployments_query = '''query deployments($input: DeploymentListInput!) {
                                    deployments(input: $input, first: 1) {
@@ -128,6 +132,7 @@ jobs:
               ('NOTIFICATION_SERVICE_URL', private_url(notification)),
               ('PARKING_SERVICE_URL', private_url(parking)),
               ('VEHICLE_SERVICE_URL', private_url(vehicle)),
+              ('CHARGING_SERVICE_URL', private_url(charging)),
           ):
               gql(mutation, {'input': {
                   'projectId': expected_project,
@@ -155,12 +160,15 @@ jobs:
           url = str(rendered.get('NOTIFICATION_SERVICE_URL') or '')
           parking_url = str(rendered.get('PARKING_SERVICE_URL') or '')
           vehicle_url = str(rendered.get('VEHICLE_SERVICE_URL') or '')
+          charging_url = str(rendered.get('CHARGING_SERVICE_URL') or '')
           if not url.startswith('http://') or '.railway.internal' not in url:
               raise SystemExit('Railway did not render the gateway Notification private URL')
           if not parking_url.startswith('http://') or '.railway.internal' not in parking_url:
               raise SystemExit('Railway did not render the gateway Parking private URL')
           if not vehicle_url.startswith('http://') or '.railway.internal' not in vehicle_url:
               raise SystemExit('Railway did not render the gateway Vehicle private URL')
+          if not charging_url.startswith('http://') or '.railway.internal' not in charging_url:
+              raise SystemExit('Railway did not render the gateway Charging private URL')
 
           with open('/tmp/gateway-state.json', 'w') as fh:
               json.dump({
@@ -173,7 +181,8 @@ jobs:
           print(f'Notification discovered: {notification["name"]}')
           print(f'Parking discovered: {parking["name"]}')
           print(f'Vehicle discovered: {vehicle["name"]}')
-          print('Notification, Parking, and Vehicle URLs rendered to Railway private DNS.')
+          print(f'Charging discovered: {charging["name"]}')
+          print('All backend URLs rendered to Railway private DNS.')
           PY
 
       - name: Deploy API Gateway and enforce health gate
