@@ -1,0 +1,190 @@
+name: Railway Vehicle Production Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'services/vehicle-service/**'
+      - '.github/workflows/railway-vehicle-deploy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-vehicle-production
+  cancel-in-progress: false
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT_NAME: production
+
+jobs:
+  deploy:
+    name: Configure and Deploy Vehicle
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Vehicle production service
+        shell: bash
+        run: |
+          test -n "${RAILWAY_TOKEN:-}" || { echo '::error::RAILWAY_TOKEN is not configured'; exit 1; }
+          python3 - <<'PY'
+          import json, os, secrets, urllib.request, urllib.error
+          api=os.environ['RAILWAY_API_URL']; token=os.environ['RAILWAY_TOKEN']; project_id=os.environ['RAILWAY_PROJECT_ID']
+
+          def gql(query,variables=None):
+              req=urllib.request.Request(api,data=json.dumps({'query':query,'variables':variables or {}}).encode(),headers={
+                  'Content-Type':'application/json','Project-Access-Token':token,
+                  'User-Agent':'VehicleManagementSystem-GitHub-Actions/1.0'},method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as response: body=json.load(response)
+              except urllib.error.HTTPError as exc:
+                  raise SystemExit(f'Railway API HTTP {exc.code}: {exc.read().decode("utf-8","replace")[:1000]}')
+              if body.get('errors'): raise SystemExit('Railway GraphQL error: '+'; '.join(e.get('message','error') for e in body['errors']))
+              return body['data']
+
+          scope=gql('query { projectToken { projectId environmentId } }')['projectToken']
+          if scope['projectId']!=project_id: raise SystemExit('RAILWAY_TOKEN belongs to another project')
+          project=gql('''query project($id:String!){project(id:$id){
+            name services{edges{node{id name}}} environments{edges{node{id name}}}
+          }}''',{'id':project_id})['project']
+          envs={e['node']['id']:e['node']['name'] for e in project['environments']['edges']}
+          if envs.get(scope['environmentId'])!=os.environ['RAILWAY_ENVIRONMENT_NAME']: raise SystemExit('Token is not scoped to production')
+          services=[e['node'] for e in project['services']['edges']]
+
+          def one(label,predicate):
+              found=[s for s in services if predicate(s['name'].lower())]
+              if len(found)!=1: raise SystemExit(f'Expected one {label}; found: '+', '.join(s['name'] for s in found))
+              return found[0]
+          vehicle=one('Vehicle service',lambda n:n in {'vehicle','vehicle-service'})
+          postgres=one('Postgres service',lambda n:'postgres' in n)
+          redis=one('Redis service',lambda n:n=='redis' or 'redis' in n)
+          frontend=one('Frontend service',lambda n:'frontend' in n)
+
+          deployments='''query deployments($input:DeploymentListInput!){
+            deployments(input:$input,first:1){edges{node{id status createdAt}}}
+          }'''
+          inp={'projectId':project_id,'serviceId':vehicle['id']}
+          edges=gql(deployments,{'input':inp})['deployments']['edges']
+          before=edges[0]['node']['id'] if edges else None
+
+          dollar=chr(36)
+          def ref(service,key):
+              return dollar+chr(123)*2+service['name']+'.'+key+chr(125)*2
+
+          project_vars=gql('''query variables($projectId:String!,$environmentId:String!,$serviceId:String){
+            variables(projectId:$projectId,environmentId:$environmentId,serviceId:$serviceId)
+          }''',{'projectId':project_id,'environmentId':scope['environmentId'],'serviceId':None})['variables'] or {}
+          upsert='mutation variableUpsert('+dollar+'input:VariableUpsertInput!){variableUpsert(input:'+dollar+'input)}'
+          if 'JWT_SECRET' not in project_vars:
+              gql(upsert,{'input':{
+                  'projectId':project_id,'environmentId':scope['environmentId'],
+                  'name':'JWT_SECRET','value':secrets.token_urlsafe(48),'skipDeploys':True
+              }})
+              print('Created a strong shared production JWT_SECRET.')
+          else:
+              print('Existing shared JWT_SECRET retained.')
+
+          values={
+              'DATABASE_URL':ref(postgres,'DATABASE_URL'),
+              'REDIS_URL':ref(redis,'REDIS_URL'),
+              'ENVIRONMENT':'production',
+              'CORS_ORIGINS':'["https://'+ref(frontend,'RAILWAY_PUBLIC_DOMAIN')+'"]',
+              'PORT':'8080',
+          }
+          for name,value in values.items():
+              gql(upsert,{'input':{
+                  'projectId':project_id,'environmentId':scope['environmentId'],'serviceId':vehicle['id'],
+                  'name':name,'value':value,'skipDeploys':True
+              }})
+
+          update=(
+              'mutation serviceInstanceUpdate('+dollar+'serviceId:String!,'+dollar+'environmentId:String!,'+
+              dollar+'input:ServiceInstanceUpdateInput!){serviceInstanceUpdate(serviceId:'+dollar+
+              'serviceId environmentId:'+dollar+'environmentId input:'+dollar+'input)}'
+          )
+          start="sh -c 'alembic upgrade head && exec uvicorn src.main:app --host 0.0.0.0 --port "+dollar+"{PORT:-8080}'"
+          gql(update,{'serviceId':vehicle['id'],'environmentId':scope['environmentId'],'input':{
+              'rootDirectory':'/services/vehicle-service','startCommand':start,
+              'healthcheckPath':'/health','numReplicas':1
+          }})
+
+          rendered_query=(
+              'query variablesForServiceDeployment('+dollar+'projectId:String!,'+dollar+'environmentId:String!,'+
+              dollar+'serviceId:String!){variablesForServiceDeployment(projectId:'+dollar+'projectId environmentId:'+
+              dollar+'environmentId serviceId:'+dollar+'serviceId)}'
+          )
+          rendered=gql(rendered_query,{'projectId':project_id,'environmentId':scope['environmentId'],'serviceId':vehicle['id']})['variablesForServiceDeployment'] or {}
+          if not str(rendered.get('DATABASE_URL') or '').startswith(('postgres://','postgresql://')):
+              raise SystemExit('Vehicle DATABASE_URL did not render')
+          if not str(rendered.get('REDIS_URL') or '').startswith(('redis://','rediss://')):
+              raise SystemExit('Vehicle REDIS_URL did not render')
+          if len(str(rendered.get('JWT_SECRET') or ''))<32:
+              raise SystemExit('Vehicle JWT_SECRET is missing or weak')
+
+          json.dump({'project_id':project_id,'environment_id':scope['environmentId'],'vehicle_id':vehicle['id'],'before':before},open('/tmp/vehicle-state.json','w'))
+          print(f'Vehicle discovered: {vehicle["name"]}')
+          print('Vehicle database, Redis, JWT, CORS, root, startup, and health configuration validated.')
+          PY
+
+      - name: Deploy Vehicle and enforce health gate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,os,time,urllib.request
+          api=os.environ['RAILWAY_API_URL'];token=os.environ['RAILWAY_TOKEN'];state=json.load(open('/tmp/vehicle-state.json'))
+          def gql(q,v=None):
+              req=urllib.request.Request(api,data=json.dumps({'query':q,'variables':v or {}}).encode(),headers={
+                'Content-Type':'application/json','Project-Access-Token':token,'User-Agent':'VehicleManagementSystem-GitHub-Actions/1.0'},method='POST')
+              with urllib.request.urlopen(req,timeout=30) as response: body=json.load(response)
+              if body.get('errors'): raise SystemExit('; '.join(e.get('message','error') for e in body['errors']))
+              return body['data']
+          query='''query deployments($input:DeploymentListInput!){deployments(input:$input,first:5){edges{node{id status createdAt}}}}'''
+          inp={'projectId':state['project_id'],'serviceId':state['vehicle_id']}
+          gql('''mutation serviceInstanceDeploy($serviceId:String!,$environmentId:String!){
+            serviceInstanceDeploy(serviceId:$serviceId,environmentId:$environmentId)
+          }''',{'serviceId':state['vehicle_id'],'environmentId':state['environment_id']})
+          deployment_id=None
+          for _ in range(30):
+              edges=gql(query,{'input':inp})['deployments']['edges']
+              if edges and edges[0]['node']['id']!=state.get('before'): deployment_id=edges[0]['node']['id'];break
+              time.sleep(2)
+          if not deployment_id: raise SystemExit('A new Vehicle deployment did not appear')
+          print('Railway Vehicle deployment ID:',deployment_id)
+          for _ in range(150):
+              edges=gql(query,{'input':inp})['deployments']['edges']
+              node=next((e['node'] for e in edges if e['node']['id']==deployment_id),None)
+              if not node: time.sleep(4);continue
+              status=str(node['status']).upper();print('Railway Vehicle deployment status:',status)
+              if status=='SUCCESS': print('Vehicle Railway /health gate passed.');raise SystemExit(0)
+              if status in {'FAILED','CRASHED','REMOVED','REMOVING','SKIPPED'}: raise SystemExit('Vehicle deployment failed: '+status)
+              time.sleep(4)
+          raise SystemExit('Timed out waiting for Vehicle deployment')
+          PY
+
+      - name: Print Vehicle logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,os,time,urllib.request
+          if not os.path.exists('/tmp/vehicle-state.json'): raise SystemExit(0)
+          s=json.load(open('/tmp/vehicle-state.json'));api=os.environ['RAILWAY_API_URL'];token=os.environ['RAILWAY_TOKEN']
+          def call(p):
+              req=urllib.request.Request(api,data=json.dumps(p).encode(),headers={'Content-Type':'application/json','Project-Access-Token':token,'User-Agent':'VehicleManagementSystem-GitHub-Actions/1.0'},method='POST')
+              with urllib.request.urlopen(req,timeout=30) as response:return json.load(response)
+          body=call({'query':'''query deployments($input:DeploymentListInput!){deployments(input:$input,first:1){edges{node{id status}}}}''','variables':{'input':{'projectId':s['project_id'],'serviceId':s['vehicle_id']}}})
+          edges=body.get('data',{}).get('deployments',{}).get('edges',[])
+          if not edges:raise SystemExit(0)
+          did=edges[0]['node']['id'];time.sleep(8)
+          for field in ('buildLogs','deploymentLogs'):
+              result=call({'query':'query logs($deploymentId:String!,$limit:Int){'+field+'(deploymentId:$deploymentId,limit:$limit){timestamp message severity}}','variables':{'deploymentId':did,'limit':300}})
+              print('--- '+field+' ---')
+              for line in result.get('data',{}).get(field,[]) or []:print('['+str(line.get('severity','INFO'))+'] '+str(line.get('message','')))
+          PY
