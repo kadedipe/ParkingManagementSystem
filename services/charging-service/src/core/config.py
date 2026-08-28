@@ -1,4 +1,4 @@
-from pydantic import field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     DOCS_ENABLED: bool = True
     DATABASE_URL: str = "sqlite+aiosqlite:///./charging.db"
     REDIS_URL: str = "redis://localhost:6379/0"
-    JWT_SECRET_KEY: str = "dev-secret-jwt-key-for-charging-service"
+    JWT_SECRET_KEY: str = Field(default="dev-secret-jwt-key-for-charging-service", validation_alias=AliasChoices("JWT_SECRET_KEY", "JWT_SECRET"))
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
     model_config = SettingsConfigDict(
