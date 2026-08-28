@@ -1,4 +1,34 @@
 describe('login visual accessibility', () => {
+  it('recovers from a stale token when session validation hangs', () => {
+    const startedAt = Date.now();
+
+    cy.intercept('GET', '**/auth/me', {
+      delay: 12000,
+      statusCode: 200,
+      body: { user: { id: 'late-user' } },
+    }).as('hangingSession');
+
+    cy.visit('/login', {
+      onBeforeLoad(win) {
+        win.localStorage.setItem('auth_token', 'stale-token');
+        win.localStorage.setItem('refresh_token', 'stale-refresh-token');
+        win.localStorage.setItem('user_data', JSON.stringify({ id: 'stale-user' }));
+      },
+    });
+
+    cy.get('input[placeholder="Enter your email"]', { timeout: 10000 })
+      .should('be.visible')
+      .then(() => {
+        expect(Date.now() - startedAt).to.be.lessThan(10000);
+      });
+
+    cy.window().then((win) => {
+      expect(win.localStorage.getItem('auth_token')).to.equal(null);
+      expect(win.localStorage.getItem('refresh_token')).to.equal(null);
+      expect(win.localStorage.getItem('user_data')).to.equal(null);
+    });
+  });
+
   it('renders an opaque card with a clickable email field', () => {
     cy.visit('/login');
 
