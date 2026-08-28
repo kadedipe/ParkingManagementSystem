@@ -116,7 +116,7 @@ jobs:
               selected[role]=matches[0]
 
           deployments_query='''query deployments($input:DeploymentListInput!){
-            deployments(input:$input,first:1){edges{node{id status createdAt}}}
+            deployments(input:$input,first:10){edges{node{id status createdAt}}}
           }'''
           deployment_ids={}
           note('')
@@ -128,12 +128,16 @@ jobs:
               edges=gql(deployments_query,{'input':{'projectId':project_id,'serviceId':service['id']}})['deployments']['edges']
               if not edges:
                   raise SystemExit(f'{service["name"]} has no deployment')
-              deployment=edges[0]['node']
-              deployment_ids[role]=deployment['id']
-              status=str(deployment['status']).upper()
-              note(f'| {service["name"]} | {status} |')
-              if status!='SUCCESS':
-                  raise SystemExit(f'{service["name"]} latest deployment is {status}')
+              latest=edges[0]['node']
+              latest_status=str(latest['status']).upper()
+              if latest_status in {'FAILED','CRASHED','REMOVED','REMOVING'}:
+                  raise SystemExit(f'{service["name"]} latest deployment is {latest_status}')
+              successful=next((edge['node'] for edge in edges if str(edge['node']['status']).upper()=='SUCCESS'),None)
+              if not successful:
+                  raise SystemExit(f'{service["name"]} has no recent successful deployment')
+              deployment_ids[role]=successful['id']
+              display=latest_status if latest_status=='SUCCESS' else latest_status+' (serving SUCCESS)'
+              note(f'| {service["name"]} | {display} |')
 
           frontend_vars=variables(selected['frontend']['id'],environment_id)
           gateway_vars=variables(selected['gateway']['id'],environment_id)
