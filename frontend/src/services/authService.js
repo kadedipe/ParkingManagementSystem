@@ -159,6 +159,22 @@ class AuthService {
   }
 
   /**
+   * Fetch and persist the authenticated user.
+   */
+  async getCurrentUser() {
+    const response = await apiService.get('/auth/me');
+    const user = response.data?.user ?? response.data;
+
+    if (!user) {
+      throw new Error('Current user response was empty');
+    }
+
+    this.setUser(user);
+    this.notifyListeners();
+    return user;
+  }
+
+  /**
    * Logout user
    */
   async logout() {
