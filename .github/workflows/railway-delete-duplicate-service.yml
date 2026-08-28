@@ -1,0 +1,94 @@
+name: Delete Duplicate Railway Service
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/railway-delete-duplicate-service.yml'
+
+permissions:
+  contents: read
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT_NAME: production
+  TARGET_SERVICE_ID: d7b6d238-82ca-47e6-8b6c-dac98852ac22
+
+jobs:
+  delete:
+    name: Verify and Delete Unexposed Duplicate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Delete exact duplicate Railway service
+        shell: bash
+        run: |
+          test -n "${RAILWAY_TOKEN:-}" || { echo '::error::RAILWAY_TOKEN is not configured'; exit 1; }
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+
+          api=os.environ['RAILWAY_API_URL']
+          token=os.environ['RAILWAY_TOKEN']
+          project_id=os.environ['RAILWAY_PROJECT_ID']
+          target_id=os.environ['TARGET_SERVICE_ID']
+
+          def gql(query,variables=None):
+              req=urllib.request.Request(api,data=json.dumps({'query':query,'variables':variables or {}}).encode(),headers={
+                  'Content-Type':'application/json','Project-Access-Token':token,
+                  'User-Agent':'ParkingManagementSystem-Service-Cleanup/1.0'},method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as response:
+                      body=json.load(response)
+              except urllib.error.HTTPError as exc:
+                  raise SystemExit(f'Railway API HTTP {exc.code}: {exc.read().decode("utf-8","replace")[:800]}')
+              if body.get('errors'):
+                  raise SystemExit('Railway GraphQL error: '+'; '.join(e.get('message','error') for e in body['errors']))
+              return body['data']
+
+          scope=gql('query { projectToken { projectId environmentId } }')['projectToken']
+          if scope['projectId'] != project_id:
+              raise SystemExit('Safety stop: token belongs to another project')
+
+          query='''query project($id:String!){
+            project(id:$id){
+              services{edges{node{id name}}}
+              environments{edges{node{id name}}}
+            }
+          }'''
+          project=gql(query,{'id':project_id})['project']
+          envs={e['node']['id']:e['node']['name'] for e in project['environments']['edges']}
+          if envs.get(scope['environmentId']) != os.environ['RAILWAY_ENVIRONMENT_NAME']:
+              raise SystemExit('Safety stop: token is not scoped to production')
+
+          services=[e['node'] for e in project['services']['edges']]
+          target=next((s for s in services if s['id']==target_id),None)
+          if target is None:
+              print('Target service is already absent; cleanup is complete.')
+              raise SystemExit(0)
+
+          allowed_names={'ParkingManagementSystem','ParkingManagementService'}
+          if target['name'] not in allowed_names:
+              raise SystemExit(f'Safety stop: target ID belongs to unexpected service {target["name"]!r}')
+
+          deployments=gql('''query deployments($input:DeploymentListInput!){
+            deployments(input:$input,first:20){edges{node{id status createdAt}}}
+          }''',{'input':{'projectId':project_id,'serviceId':target_id}})['deployments']['edges']
+          active={'BUILDING','DEPLOYING','INITIALIZING','WAITING','QUEUED','SUCCESS'}
+          active_records=[e['node'] for e in deployments if str(e['node']['status']).upper() in active]
+          if active_records:
+              statuses=', '.join(str(d['status']) for d in active_records)
+              raise SystemExit('Safety stop: target has an active/successful deployment: '+statuses)
+
+          print(f'Verified duplicate service: {target["name"]} ({target_id})')
+          print('Verified: no active or successful deployment exists.')
+          gql('''mutation serviceDelete($id:String!){serviceDelete(id:$id)}''',{'id':target_id})
+
+          remaining=[e['node'] for e in gql(query,{'id':project_id})['project']['services']['edges']]
+          if any(s['id']==target_id for s in remaining):
+              raise SystemExit('Railway accepted the mutation but the service is still present')
+          print('Duplicate Railway service deleted and absence verified.')
+          PY
