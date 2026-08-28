@@ -232,7 +232,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, os, urllib.request
+          import json, os, time, urllib.request
           if not os.path.exists('/tmp/frontend-state.json'):
               raise SystemExit(0)
           state = json.load(open('/tmp/frontend-state.json'))
@@ -257,6 +257,7 @@ jobs:
           if not edges:
               raise SystemExit(0)
           deployment_id = edges[0]['node']['id']
+          time.sleep(10)
           for field in ('buildLogs', 'deploymentLogs'):
               payload = {
                   'query': 'query logs($deploymentId: String!, $limit: Int) { ' + field
