@@ -162,8 +162,8 @@ jobs:
           # Use the documented single-variable API for Railway references. Build
           # the syntax at runtime so GitHub Actions never parses it as an expression.
           dollar = chr(36)
-          db_ref = dollar + chr(123) * 2 + pg['name'] + '.DATABASE_PRIVATE_URL' + chr(125) * 2
-          redis_ref = dollar + chr(123) * 2 + rd['name'] + '.REDIS_PRIVATE_URL' + chr(125) * 2
+          db_ref = dollar + chr(123) * 2 + pg['name'] + '.DATABASE_URL' + chr(125) * 2
+          redis_ref = dollar + chr(123) * 2 + rd['name'] + '.REDIS_URL' + chr(125) * 2
           variable_upsert = (
               'mutation variableUpsert(' + dollar + 'input: VariableUpsertInput!) '
               '{ variableUpsert(input: ' + dollar + 'input) }'
