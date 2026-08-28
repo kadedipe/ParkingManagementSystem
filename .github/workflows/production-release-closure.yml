@@ -116,7 +116,7 @@ jobs:
               selected[role]=matches[0]
 
           deployments_query='''query deployments($input:DeploymentListInput!){
-            deployments(input:$input,first:10){edges{node{id status createdAt}}}
+            deployments(input:$input,first:100){edges{node{id status createdAt}}}
           }'''
           deployment_ids={}
           note('')
