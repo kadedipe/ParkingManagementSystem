@@ -4,7 +4,10 @@
   "description": "Modern React frontend for Parking Management System",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=18.0.0", "npm": ">=9.0.0"},
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "dev:debug": "vite --debug",
@@ -34,7 +37,8 @@
     "prepare": "husky install",
     "pre-commit": "lint-staged",
     "docker:build": "docker build -t parking-frontend .",
-    "docker:run": "docker run -p 5173:5173 parking-frontend"
+    "docker:run": "docker run -p 5173:5173 parking-frontend",
+    "test:performance": "node scripts/check-login-bundle.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",
@@ -104,14 +108,33 @@
     "vite-plugin-svgr": "^4.2.0",
     "vitest": "^1.2.2"
   },
-  "overrides": {"react": "$react", "react-dom": "$react-dom"},
+  "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom"
+  },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "lint-staged": {
-    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
-    "*.{css,scss}": ["prettier --write"]
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,scss}": [
+      "prettier --write"
+    ]
   },
-  "volta": {"node": "18.17.0", "npm": "10.2.5"}
+  "volta": {
+    "node": "18.17.0",
+    "npm": "10.2.5"
+  }
 }
