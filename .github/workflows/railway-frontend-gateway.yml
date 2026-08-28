@@ -241,7 +241,8 @@ jobs:
 
           def call(payload):
               req = urllib.request.Request(api, data=json.dumps(payload).encode(), headers={
-                  'Content-Type':'application/json', 'Project-Access-Token':token
+                  'Content-Type':'application/json', 'Project-Access-Token':token,
+                  'User-Agent':'ParkingManagementSystem-GitHub-Actions/1.0'
               }, method='POST')
               with urllib.request.urlopen(req, timeout=30) as response:
                   return json.load(response)
