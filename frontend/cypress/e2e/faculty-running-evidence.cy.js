@@ -7,22 +7,25 @@ Cypress.on('uncaught:exception', (error) => {
 });
 
 const authenticate = () => {
-  cy.intercept('GET', '**/v1/charging-stations*', {
-    statusCode: 200,
-    body: [
-      {
-        id: 'station-001',
-        name: 'Main Campus EV Hub',
-        status: 'active',
-        total_connectors: 8,
-        available_connectors: 5,
-        occupied_connectors: 3,
-        power_level: 'DC fast',
-        price_per_kwh: 0.42,
-        address: { street: 'Faculty Avenue', city: 'Campus' },
-      },
-    ],
-  });
+  cy.intercept(
+    { method: 'GET', url: /\/v1\/charging-stations\/?(?:\?.*)?$/ },
+    {
+      statusCode: 200,
+      body: [
+        {
+          id: 'station-001',
+          name: 'Main Campus EV Hub',
+          status: 'active',
+          total_connectors: 8,
+          available_connectors: 5,
+          occupied_connectors: 3,
+          power_level: 'DC fast',
+          price_per_kwh: 0.42,
+          address: { street: 'Faculty Avenue', city: 'Campus' },
+        },
+      ],
+    }
+  );
   cy.intercept('GET', '**/parking/spots*', {
     statusCode: 200,
     body: {
