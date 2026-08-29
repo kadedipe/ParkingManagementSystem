@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter
 
-from . import auth, parking_lots, parking_spots, reservations
+from . import auth, parking_lots, parking_sessions, parking_spots, reservations
 
 
 router = APIRouter(
@@ -19,6 +19,7 @@ router.include_router(parking_lots.router)
 router.include_router(auth.router)
 router.include_router(parking_spots.router)
 router.include_router(reservations.router)
+router.include_router(parking_sessions.router)
 
 
 # ============================================================================
