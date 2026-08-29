@@ -15,6 +15,7 @@ from fastapi.exceptions import RequestValidationError
 
 from src.core.config import settings
 from src.core.database import init_db, engine
+from src.services.parking_inventory_reconciler import reconcile_parking_inventory
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -38,6 +39,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             await init_db()
         else:
             logger.info("Production mode: database schema is managed by Alembic migrations")
+
+        if settings.ENVIRONMENT != "test":
+            await reconcile_parking_inventory()
+
         yield
     except Exception as e:
         logger.error(f"Startup failed: {str(e)}")
