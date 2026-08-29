@@ -23,7 +23,7 @@ export const useDashboard = () => {
       
       const response = await dashboardService.getDashboard();
       
-      setStats(response.stats);
+      setStats(response?.stats || {});
       setOccupancyData(response.occupancy_data || []);
       setRevenueData(response.revenue_data || []);
       setActivityData(response.activity_data || []);
@@ -34,7 +34,7 @@ export const useDashboard = () => {
       return response;
     } catch (err) {
       setError(err.message || 'Failed to fetch dashboard data');
-      throw err;
+      return null;
     } finally {
       setLoading(false);
     }

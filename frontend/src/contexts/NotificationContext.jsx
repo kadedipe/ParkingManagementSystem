@@ -108,13 +108,15 @@ const ActionTypes = {
 
 const notificationReducer = (state, action) => {
   switch (action.type) {
-    case ActionTypes.SET_NOTIFICATIONS:
+    case ActionTypes.SET_NOTIFICATIONS: {
+      const notifications = Array.isArray(action.payload) ? action.payload : [];
       return {
         ...state,
-        notifications: action.payload,
-        totalCount: action.payload.length,
+        notifications,
+        totalCount: notifications.length,
         lastUpdated: new Date(),
       };
+    }
       
     case ActionTypes.ADD_NOTIFICATION:
       return {
@@ -382,9 +384,17 @@ export const NotificationProvider = ({ children, autoConnect = true }) => {
         ...params,
       });
 
-      dispatch({ type: ActionTypes.SET_NOTIFICATIONS, payload: response.items });
-      dispatch({ type: ActionTypes.SET_UNREAD_COUNT, payload: response.unreadCount });
-      dispatch({ type: ActionTypes.SET_TOTAL_COUNT, payload: response.total });
+      const items = Array.isArray(response?.items)
+        ? response.items
+        : Array.isArray(response)
+          ? response
+          : [];
+      const unreadCount = Number(response?.unreadCount ?? response?.unread_count ?? 0);
+      const total = Number(response?.total ?? items.length);
+
+      dispatch({ type: ActionTypes.SET_NOTIFICATIONS, payload: items });
+      dispatch({ type: ActionTypes.SET_UNREAD_COUNT, payload: unreadCount });
+      dispatch({ type: ActionTypes.SET_TOTAL_COUNT, payload: total });
       dispatch({ type: ActionTypes.SET_LAST_UPDATED, payload: new Date() });
 
       return response;
@@ -475,8 +485,11 @@ export const NotificationProvider = ({ children, autoConnect = true }) => {
   const fetchPreferences = useCallback(async () => {
     try {
       const preferences = await notificationsService.getPreferences();
-      dispatch({ type: ActionTypes.SET_PREFERENCES, payload: preferences });
-      return preferences;
+      const normalizedPreferences = preferences && typeof preferences === 'object'
+        ? preferences
+        : initialState.preferences;
+      dispatch({ type: ActionTypes.SET_PREFERENCES, payload: normalizedPreferences });
+      return normalizedPreferences;
     } catch (error) {
       console.error('Failed to fetch preferences:', error);
       throw error;

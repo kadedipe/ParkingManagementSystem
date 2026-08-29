@@ -213,11 +213,11 @@ export const Dashboard = () => {
   // ==========================================================================
 
   useEffect(() => {
-    fetchDashboard();
+    void fetchDashboard();
     
     // Set up auto-refresh interval (5 minutes)
     const interval = setInterval(() => {
-      fetchDashboard();
+      void fetchDashboard();
     }, 5 * 60 * 1000);
     
     return () => clearInterval(interval);
@@ -229,8 +229,11 @@ export const Dashboard = () => {
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await fetchDashboard();
-    setIsRefreshing(false);
+    try {
+      await fetchDashboard();
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [fetchDashboard]);
 
   const handleMenuOpen = (event) => {
