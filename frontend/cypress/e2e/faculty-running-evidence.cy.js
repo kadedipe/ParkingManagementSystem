@@ -1,12 +1,4 @@
-const user = {
-  id: 'faculty-review-user',
-  email: 'review@example.edu',
-  firstName: 'Kolapo',
-  role: 'admin',
-};
-
 const authenticate = () => {
-  cy.intercept('GET', '**/auth/me', { statusCode: 200, body: { user } });
   cy.intercept('GET', '**/v1/charging-stations/**', {
     statusCode: 200,
     body: [
@@ -31,11 +23,6 @@ const authenticate = () => {
         { id: 'spot-a1', number: 'A-01', status: 'available', type: 'standard', pricePerHour: 2.5 },
         { id: 'spot-e2', number: 'EV-02', status: 'available', type: 'ev_charging', pricePerHour: 4.0 },
       ],
-    },
-  });
-  cy.visit('/dashboard', {
-    onBeforeLoad(win) {
-      win.localStorage.setItem('auth_token', 'faculty-evidence-token');
     },
   });
 };
