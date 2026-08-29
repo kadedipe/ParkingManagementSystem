@@ -35,17 +35,32 @@ export const parkingService = {
     const spots = spotResults.flatMap((result, index) => {
       if (result.status !== 'fulfilled') return [];
       const lot = lots[index];
-      return asArray(result.value.data).map((spot) => ({
-        ...spot,
-        parking_lot: lot,
-        parking_lot_name: lot.name,
-        name: spot.number ? `${lot.name} · ${spot.number}` : lot.name,
-        address: lot.address,
-        location: lot.location,
-        latitude: lot.location?.latitude ?? lot.location?.lat,
-        longitude: lot.location?.longitude ?? lot.location?.lng,
-        price_per_hour: spot.charging_price ?? lot.price_per_hour,
-      }));
+      return asArray(result.value.data).map((spot) => {
+        const hourlyRate = Number(
+          spot.price_per_hour ??
+          spot.hourly_rate ??
+          spot.charging_price ??
+          lot.price_per_hour ??
+          lot.base_price_per_hour ??
+          0
+        );
+        return {
+          ...spot,
+          parking_lot: lot,
+          parking_lot_name: lot.name,
+          name: spot.number ? `${lot.name} · ${spot.number}` : lot.name,
+          address: lot.address,
+          location: lot.location,
+          latitude: lot.location?.latitude ?? lot.location?.lat,
+          longitude: lot.location?.longitude ?? lot.location?.lng,
+          floor: spot.floor ?? spot.level ?? 1,
+          level: spot.level ?? spot.floor ?? 1,
+          section: spot.section || lot.section || lot.name || 'Parking',
+          price_per_hour: hourlyRate,
+          price: hourlyRate,
+          hourly_rate: hourlyRate,
+        };
+      });
     }).filter((spot) => {
       const matchesQuery = !query || [spot.name, spot.number, spot.parking_lot_name]
         .some((value) => String(value || '').toLowerCase().includes(query));
