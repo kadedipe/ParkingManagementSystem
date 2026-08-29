@@ -1,1 +1,0 @@
-The Reservation Calendar uses the persisted reservations API and provides date/status filtering. It intentionally does not synthesize reservations; Dashboard upcoming rows appear only after a reservation is created and confirmed.
