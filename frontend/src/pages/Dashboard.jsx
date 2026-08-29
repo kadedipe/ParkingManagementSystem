@@ -452,10 +452,10 @@ export const Dashboard = () => {
   // ==========================================================================
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 }, width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, gap: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant="h4" fontWeight={700}>
             Dashboard
           </Typography>
@@ -622,12 +622,16 @@ export const Dashboard = () => {
         <Grid item xs={12} md={8}>
           <Paper
             sx={{
-              p: 3,
+              p: { xs: 2, md: 3 },
               borderRadius: theme.shape.borderRadius * 2,
               height: '100%',
+              width: '100%',
+              maxWidth: '100%',
+              minWidth: 0,
+              overflow: 'hidden',
             }}
           >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
               <Typography variant="h6" fontWeight={600}>
                 Occupancy Overview
               </Typography>
@@ -651,33 +655,35 @@ export const Dashboard = () => {
             </Box>
             
             {expandedSections.occupancy && (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={occupancyData}>
-                  <defs>
-                    <linearGradient id="occupancyGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                  <XAxis dataKey="time" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <RechartsTooltip
-                    contentStyle={{
-                      borderRadius: theme.shape.borderRadius * 2,
-                      border: 'none',
-                      boxShadow: theme.shadows[3],
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={showOccupancy ? 'occupancy' : 'available'}
-                    stroke={theme.palette.primary.main}
-                    fill="url(#occupancyGradient)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <Box sx={{ width: '100%', minWidth: 0, overflow: 'hidden' }}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={occupancyData}>
+                    <defs>
+                      <linearGradient id="occupancyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                    <XAxis dataKey="time" fontSize={12} />
+                    <YAxis fontSize={12} />
+                    <RechartsTooltip
+                      contentStyle={{
+                        borderRadius: theme.shape.borderRadius * 2,
+                        border: 'none',
+                        boxShadow: theme.shadows[3],
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={showOccupancy ? 'occupancy' : 'available'}
+                      stroke={theme.palette.primary.main}
+                      fill="url(#occupancyGradient)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -686,39 +692,45 @@ export const Dashboard = () => {
         <Grid item xs={12} md={4}>
           <Paper
             sx={{
-              p: 3,
+              p: { xs: 2, md: 3 },
               borderRadius: theme.shape.borderRadius * 2,
               height: '100%',
+              width: '100%',
+              maxWidth: '100%',
+              minWidth: 0,
+              overflow: 'hidden',
             }}
           >
             <Typography variant="h6" fontWeight={600} gutterBottom>
               Spot Status
             </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={spotStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {spotStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <RechartsTooltip
-                  contentStyle={{
-                    borderRadius: theme.shape.borderRadius * 2,
-                    border: 'none',
-                    boxShadow: theme.shadows[3],
-                  }}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <Box sx={{ width: '100%', minWidth: 0, overflow: 'hidden' }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={spotStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {spotStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    contentStyle={{
+                      borderRadius: theme.shape.borderRadius * 2,
+                      border: 'none',
+                      boxShadow: theme.shadows[3],
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
           </Paper>
         </Grid>
 
@@ -726,15 +738,19 @@ export const Dashboard = () => {
         <Grid item xs={12}>
           <Paper
             sx={{
-              p: 3,
+              p: { xs: 2, md: 3 },
               borderRadius: theme.shape.borderRadius * 2,
+              width: '100%',
+              maxWidth: '100%',
+              minWidth: 0,
+              overflow: 'hidden',
             }}
           >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
               <Typography variant="h6" fontWeight={600}>
                 Revenue Overview
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, maxWidth: '100%', overflowX: 'auto' }}>
                 <Tabs value={selectedTab} onChange={handleTabChange} sx={{ minHeight: 36 }}>
                   <Tab label="Daily" sx={{ minHeight: 36, py: 0 }} />
                   <Tab label="Weekly" sx={{ minHeight: 36, py: 0 }} />
@@ -749,24 +765,26 @@ export const Dashboard = () => {
             </Box>
             
             {expandedSections.revenue && (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis fontSize={12} tickFormatter={(value) => formatCurrency(value)} />
-                  <RechartsTooltip
-                    contentStyle={{
-                      borderRadius: theme.shape.borderRadius * 2,
-                      border: 'none',
-                      boxShadow: theme.shadows[3],
-                    }}
-                    formatter={(value) => formatCurrency(value)}
-                  />
-                  <Bar dataKey="revenue" fill={theme.palette.primary.main} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expenses" fill={theme.palette.error.main} radius={[4, 4, 0, 0]} />
-                  <Legend />
-                </BarChart>
-              </ResponsiveContainer>
+              <Box sx={{ width: '100%', minWidth: 0, overflow: 'hidden' }}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                    <XAxis dataKey="date" fontSize={12} />
+                    <YAxis fontSize={12} tickFormatter={(value) => formatCurrency(value)} />
+                    <RechartsTooltip
+                      contentStyle={{
+                        borderRadius: theme.shape.borderRadius * 2,
+                        border: 'none',
+                        boxShadow: theme.shadows[3],
+                      }}
+                      formatter={(value) => formatCurrency(value)}
+                    />
+                    <Bar dataKey="revenue" fill={theme.palette.primary.main} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expenses" fill={theme.palette.error.main} radius={[4, 4, 0, 0]} />
+                    <Legend />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -775,11 +793,15 @@ export const Dashboard = () => {
         <Grid item xs={12} md={6}>
           <Paper
             sx={{
-              p: 3,
+              p: { xs: 2, md: 3 },
               borderRadius: theme.shape.borderRadius * 2,
+              width: '100%',
+              maxWidth: '100%',
+              minWidth: 0,
+              overflow: 'hidden',
             }}
           >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
               <Typography variant="h6" fontWeight={600}>
                 Recent Activity
               </Typography>
@@ -850,18 +872,32 @@ export const Dashboard = () => {
         <Grid item xs={12} md={6}>
           <Paper
             sx={{
-              p: 3,
+              p: { xs: 2, md: 3 },
               borderRadius: theme.shape.borderRadius * 2,
+              width: '100%',
+              maxWidth: '100%',
+              minWidth: 0,
+              overflow: 'hidden',
             }}
           >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
               <Typography variant="h6" fontWeight={600}>
                 Upcoming Reservations
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Badge badgeContent={reservationsData.length} color="primary">
-                  <CalendarIcon />
-                </Badge>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Tooltip title="Open reservation calendar">
+                  <IconButton size="small" onClick={() => navigate('/calendar')} aria-label="Open reservation calendar">
+                    <Badge badgeContent={reservationsData.length} color="primary">
+                      <CalendarIcon />
+                    </Badge>
+                  </IconButton>
+                </Tooltip>
+                <Button size="small" variant="outlined" startIcon={<CalendarIcon />} onClick={() => navigate('/calendar')}>
+                  Calendar
+                </Button>
+                <Button size="small" variant="contained" startIcon={<ParkingIcon />} onClick={() => navigate('/parking')}>
+                  New reservation
+                </Button>
                 <Tooltip title="Expand">
                   <IconButton size="small" onClick={() => toggleSection('reservations')}>
                     {expandedSections.reservations ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -871,8 +907,8 @@ export const Dashboard = () => {
             </Box>
             
             {expandedSections.reservations && (
-              <TableContainer sx={{ maxHeight: 400 }}>
-                <Table stickyHeader>
+              <TableContainer sx={{ maxHeight: 400, width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
+                <Table stickyHeader sx={{ minWidth: 560 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell>Spot</TableCell>
@@ -883,18 +919,18 @@ export const Dashboard = () => {
                   </TableHead>
                   <TableBody>
                     {reservationsData.map((reservation, index) => (
-                      <TableRow key={index} hover>
+                      <TableRow key={reservation.id || index} hover>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <StatusDot status={reservation.status} />
-                            {reservation.spot}
+                            {reservation.spot || '—'}
                           </Box>
                         </TableCell>
-                        <TableCell>{reservation.customer}</TableCell>
-                        <TableCell>{formatDate(reservation.date)}</TableCell>
+                        <TableCell>{reservation.customer || '—'}</TableCell>
+                        <TableCell>{reservation.date ? formatDate(reservation.date) : '—'}</TableCell>
                         <TableCell>
                           <Chip
-                            label={reservation.status}
+                            label={reservation.status || 'unknown'}
                             size="small"
                             color={
                               reservation.status === 'confirmed' ? 'success' :
@@ -908,9 +944,14 @@ export const Dashboard = () => {
                     {reservationsData.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={4} align="center">
-                          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                            No upcoming reservations
-                          </Typography>
+                          <Stack spacing={1.5} alignItems="center" sx={{ py: 3 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              No upcoming reservations
+                            </Typography>
+                            <Button size="small" variant="contained" onClick={() => navigate('/parking')}>
+                              Reserve a parking spot
+                            </Button>
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     )}
@@ -926,21 +967,26 @@ export const Dashboard = () => {
       <Paper
         sx={{
           mt: 3,
-          p: 3,
+          p: { xs: 2, md: 3 },
           borderRadius: theme.shape.borderRadius * 2,
           display: 'flex',
           flexWrap: 'wrap',
           gap: 2,
           alignItems: 'center',
           justifyContent: 'space-between',
+          width: '100%',
+          maxWidth: '100%',
         }}
       >
         <Typography variant="body2" color="text.secondary">
           Quick Actions
         </Typography>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
           <Button variant="contained" startIcon={<ParkingIcon />} onClick={() => setQuickCreate('parking')}>
             Add Parking
+          </Button>
+          <Button variant="outlined" startIcon={<CalendarIcon />} onClick={() => navigate('/calendar')}>
+            Reservations
           </Button>
           <Button variant="outlined" startIcon={<EvStationIcon />} onClick={() => setQuickCreate('charging')}>
             Add Charging
