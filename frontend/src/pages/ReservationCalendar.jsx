@@ -48,6 +48,8 @@ export default function ReservationCalendar() {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState('');
 
+  const startReservation = () => navigate('/parking?reserve=1', { state: { reservationMode: true } });
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -90,7 +92,7 @@ export default function ReservationCalendar() {
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button variant="outlined" startIcon={<RefreshIcon />} onClick={load} disabled={loading}>Refresh</Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/parking')}>New reservation</Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={startReservation}>New reservation</Button>
         </Stack>
       </Stack>
 
@@ -116,7 +118,7 @@ export default function ReservationCalendar() {
         {loading ? (
           <Box sx={{ py: 8, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>
         ) : (
-          <TableContainer>
+          <TableContainer sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -139,7 +141,7 @@ export default function ReservationCalendar() {
                   <TableRow>
                     <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
                       <Typography color="text.secondary" mb={2}>No reservations match this calendar range.</Typography>
-                      <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/parking')}>Reserve a parking spot</Button>
+                      <Button variant="contained" startIcon={<AddIcon />} onClick={startReservation}>Reserve a parking spot</Button>
                     </TableCell>
                   </TableRow>
                 )}
