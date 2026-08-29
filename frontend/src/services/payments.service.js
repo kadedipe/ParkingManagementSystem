@@ -1,20 +1,29 @@
-const emptyPayments = () => [];
+import api from './api';
+
+const unwrap = (response) => response?.data ?? response;
 
 export const paymentsService = {
-  // Payment persistence is not implemented by a backend service yet. Return a
-  // clean empty state instead of generating production 404s from placeholder
-  // frontend routes. These methods can be switched back to API calls when the
-  // payment service is introduced.
-  getPayments: async () => emptyPayments(),
-  getPaymentHistory: async () => emptyPayments(),
-  getPaymentMethods: async () => emptyPayments(),
-  getPaymentStats: async () => ({ total: 0, completed: 0, pending: 0 }),
-  processPayment: async () => {
-    throw new Error('Payment processing is not available yet.');
-  },
-  getPaymentReceipt: async () => {
-    throw new Error('Payment receipts are not available yet.');
-  },
+  getPayments: async (params = {}) => unwrap(await api.get('/payments/', { params })),
+  getPaymentHistory: async (params = {}) => unwrap(await api.get('/payments/history', { params })),
+  getPaymentMethods: async () => unwrap(await api.get('/payments/methods')),
+  getPaymentStats: async () => unwrap(await api.get('/payments/stats')),
+
+  createPayment: async ({ reservationId, paymentMethod = 'credit_card', currency = 'USD' }) =>
+    unwrap(await api.post('/payments/', {
+      reservation_id: reservationId,
+      payment_method: paymentMethod,
+      currency,
+    }, { retry: false })),
+
+  processPayment: async (paymentId, providerPaymentMethodId = null) =>
+    unwrap(await api.post(`/payments/${paymentId}/process`, {
+      provider_payment_method_id: providerPaymentMethodId,
+    }, { retry: false })),
+
+  getPaymentReceipt: async (paymentId) => unwrap(await api.get(`/payments/${paymentId}/receipt`)),
+
+  refundPayment: async (paymentId) =>
+    unwrap(await api.post(`/payments/${paymentId}/refund`, {}, { retry: false })),
 };
 
 export default paymentsService;
