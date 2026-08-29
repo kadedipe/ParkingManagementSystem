@@ -60,17 +60,53 @@ export const useBookings = () => {
     }
   }, []);
 
-  const cancelBooking = useCallback(async (id, reason) => {
+  const cancelBooking = useCallback(async (id) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await bookingsService.cancelBooking(id, reason);
+      const response = await bookingsService.cancelBooking(id);
       setBookings((current) => current.map((booking) => (
         booking.id === id ? response : booking
       )));
       return response;
     } catch (err) {
       setError(err.message || 'Failed to cancel booking');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const startParking = useCallback(async (reservationId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const session = await bookingsService.startParking(reservationId);
+      setBookings((current) => current.map((booking) => (
+        booking.id === reservationId ? { ...booking, status: 'active' } : booking
+      )));
+      return session;
+    } catch (err) {
+      setError(err.message || 'Failed to start parking session');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const endParking = useCallback(async (reservationId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const session = await bookingsService.endParking(reservationId);
+      setBookings((current) => current.map((booking) => (
+        booking.id === reservationId
+          ? { ...booking, status: 'completed', total_amount: session.total_amount }
+          : booking
+      )));
+      return session;
+    } catch (err) {
+      setError(err.message || 'Failed to end parking session');
       throw err;
     } finally {
       setLoading(false);
@@ -113,6 +149,8 @@ export const useBookings = () => {
     fetchBookings,
     getBooking,
     cancelBooking,
+    startParking,
+    endParking,
     rebookBooking,
     exportBookings,
   };
