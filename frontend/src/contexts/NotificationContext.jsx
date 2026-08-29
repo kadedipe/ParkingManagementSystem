@@ -549,12 +549,18 @@ export const NotificationProvider = ({ children, autoConnect = true }) => {
     ]);
     
     // Set up polling for unread count
+    let consecutiveFailures = 0;
     const interval = setInterval(async () => {
       try {
         const count = await notificationsService.getUnreadCount();
         dispatch({ type: ActionTypes.SET_UNREAD_COUNT, payload: count });
+        consecutiveFailures = 0;
       } catch (error) {
+        consecutiveFailures += 1;
         console.error('Failed to fetch unread count:', error);
+        if (consecutiveFailures >= 3) {
+          clearInterval(interval);
+        }
       }
     }, 30000); // Every 30 seconds
     

@@ -295,7 +295,7 @@ export const VehicleForm = ({
   } = useForm({
     resolver: yupResolver(vehicleSchema),
     defaultValues: {
-      license_plate: vehicle?.license_plate || '',
+      license_plate: vehicle?.license_plate || vehicle?.plate_number || '',
       state: vehicle?.state || 'CA',
       country: vehicle?.country || 'US',
       make: vehicle?.make || '',
@@ -985,6 +985,8 @@ export const VehicleForm = ({
           {!readOnly && (
             <>
               <input
+                id="vehicle-images"
+                name="vehicle_images"
                 type="file"
                 accept="image/*"
                 multiple

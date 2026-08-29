@@ -104,6 +104,7 @@ import {
 import { formatCurrency, formatDate, formatTime } from '../utils/formatters';
 import { useDashboard } from '../hooks/useDashboard';
 import { useAuth } from '../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 // ============================================================================
 // Styled Components
@@ -179,6 +180,7 @@ const StatusDot = styled(Box)(({ theme, status }) => {
 
 export const Dashboard = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { 
     stats, 
@@ -830,16 +832,16 @@ export const Dashboard = () => {
           Quick Actions
         </Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="contained" startIcon={<ParkingIcon />}>
+          <Button variant="contained" startIcon={<ParkingIcon />} onClick={() => navigate('/parking')}>
             Add Parking
           </Button>
-          <Button variant="outlined" startIcon={<EvStationIcon />}>
+          <Button variant="outlined" startIcon={<EvStationIcon />} onClick={() => navigate('/charging')}>
             Add Charging
           </Button>
-          <Button variant="outlined" startIcon={<AssessmentIcon />}>
+          <Button variant="outlined" startIcon={<AssessmentIcon />} onClick={() => navigate('/reports')}>
             Generate Report
           </Button>
-          <Button variant="outlined" startIcon={<NotificationsIcon />}>
+          <Button variant="outlined" startIcon={<NotificationsIcon />} onClick={() => navigate('/notifications')}>
             View Alerts
           </Button>
         </Stack>

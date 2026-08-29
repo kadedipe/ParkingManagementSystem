@@ -4,6 +4,22 @@
 
 import api from './api';
 
+const toVehiclePayload = (data = {}) => ({
+  name: String(data.name || `${data.make || ''} ${data.model || ''}`).trim(),
+  plate_number: String(data.plate_number || data.license_plate || '').trim().toUpperCase(),
+  vin: String(data.vin || '').trim() || null,
+  color: data.color || null,
+  year: data.year ? Number(data.year) : null,
+  make: data.make || null,
+  model: data.model || null,
+  is_ev: Boolean(data.is_ev ?? (data.fuel_type === 'electric' || data.is_ev_charging_compatible)),
+  battery_capacity: data.battery_capacity ? Number(data.battery_capacity) : null,
+  connector_type: data.connector_type || null,
+  max_charging_power: data.max_charging_power ? Number(data.max_charging_power) : null,
+  mileage: data.mileage ? Number(data.mileage) : null,
+  is_default: Boolean(data.is_default),
+});
+
 export const vehiclesService = {
   getVehicles: async (params) => {
     const page = Math.max(1, Number(params?.page || 1));
@@ -50,12 +66,12 @@ export const vehiclesService = {
   },
 
   createVehicle: async (data) => {
-    const response = await api.post('/vehicles', data);
+    const response = await api.post('/vehicles', toVehiclePayload(data));
     return response.data;
   },
 
   updateVehicle: async (id, data) => {
-    const response = await api.put(`/vehicles/${id}`, data);
+    const response = await api.put(`/vehicles/${id}`, toVehiclePayload(data));
     return response.data;
   },
 
