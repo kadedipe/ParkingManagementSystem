@@ -6,6 +6,11 @@ from .parking_session import ParkingSession, ParkingSessionStatus
 from .parking_review import ParkingReview
 from .pricing_rule import PricingRule
 from .payment import Payment, PaymentStatus, PaymentMethod
+from .billing_adjustment import (
+    BillingAdjustment,
+    BillingAdjustmentStatus,
+    BillingAdjustmentType,
+)
 
 __all__ = [
     "ParkingLot", "ParkingLotStatus", "ParkingLotType",
@@ -13,4 +18,5 @@ __all__ = [
     "User", "Reservation", "ReservationStatus",
     "ParkingSession", "ParkingSessionStatus",
     "ParkingReview", "PricingRule", "Payment", "PaymentStatus", "PaymentMethod",
+    "BillingAdjustment", "BillingAdjustmentStatus", "BillingAdjustmentType",
 ]
