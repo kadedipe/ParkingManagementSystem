@@ -70,9 +70,15 @@ export const notificationsService = {
     return response.data;
   },
 
-  // Toast notifications
+  // Create an in-app alert. The notification service exposes POST /v1/notifications/send.
+  createAlert: async (data) => {
+    const response = await api.post('/notifications/send', data);
+    return response.data;
+  },
+
+  // Backward-compatible alias used by older UI code.
   createToast: async (data) => {
-    const response = await api.post('/notifications/toast', data);
+    const response = await api.post('/notifications/send', data);
     return response.data;
   },
 };
