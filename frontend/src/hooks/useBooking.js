@@ -23,7 +23,9 @@ export const useBookings = () => {
       }
       return response;
     } catch (err) {
-      setError(err.message || 'Failed to create booking');
+      // BookingForm owns create-submission errors so the same failure is not
+      // rendered once by the hook and again by the form.
+      setError(null);
       throw err;
     } finally {
       setLoading(false);
