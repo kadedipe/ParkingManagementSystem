@@ -1,5 +1,7 @@
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Dict, Any
 from uuid import UUID
+
 from fastapi import HTTPException
 from sqlalchemy import select
 
@@ -35,8 +37,17 @@ class ReservationService:
         if existing:
             raise HTTPException(status_code=400, detail="Spot is already reserved for this time slot")
 
-        duration_hours = (data["end_time"] - data["start_time"]).total_seconds() / 3600
-        data["total_price"] = float(duration_hours * spot.parking_lot.base_price_per_hour)
+        # Parking-lot rates are DECIMAL in the database. Keep the billing
+        # calculation in Decimal space and round to cents before persisting.
+        duration_seconds = Decimal(
+            str((data["end_time"] - data["start_time"]).total_seconds())
+        )
+        duration_hours = duration_seconds / Decimal("3600")
+        hourly_rate = Decimal(str(spot.parking_lot.base_price_per_hour or 0))
+        total_price = (duration_hours * hourly_rate).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        data["total_price"] = float(total_price)
 
         reservation = await self.repository.create(data)
         return self._to_dict(reservation)
