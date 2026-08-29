@@ -32,8 +32,7 @@ export const bookingsService = {
     const durationHours = Number(booking.duration || 1);
     const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
 
-    // Reservation creation is non-idempotent. Use the Axios instance directly
-    // so a server 5xx is not replayed by the generic retry wrapper.
+    // Reservation creation/confirmation are non-idempotent and execute once.
     const createResponse = await api.instance.post('/reservations/', {
       parking_spot_id: booking.spot_id,
       vehicle_id: booking.vehicle_id || null,
@@ -42,45 +41,49 @@ export const bookingsService = {
     });
 
     const created = createResponse.data;
-
-    // Confirmation also mutates reservation/spot state and must execute once.
     const confirmResponse = await api.instance.post(`/reservations/${created.id}/confirm`);
+    const reservation = normalizeReservation(confirmResponse.data);
+
+    // Create the persistent billing record immediately after confirmation.
+    // If billing is temporarily unavailable, keep the confirmed reservation
+    // successful and surface a warning instead of asking the user to rebook.
+    let payment = null;
+    let paymentWarning = null;
+    try {
+      const paymentResponse = await api.instance.post('/payments/', {
+        reservation_id: reservation.id,
+        payment_method: booking.payment_method || 'credit_card',
+        currency: 'USD',
+      });
+      payment = paymentResponse.data;
+    } catch (paymentError) {
+      paymentWarning = paymentError?.message || 'Reservation confirmed, but payment setup is temporarily unavailable.';
+    }
 
     return {
       success: true,
-      data: normalizeReservation(confirmResponse.data),
-      message: 'Booking confirmed successfully',
+      data: { ...reservation, payment },
+      payment,
+      payment_warning: paymentWarning,
+      message: paymentWarning
+        ? 'Reservation confirmed. Payment setup needs attention.'
+        : 'Reservation confirmed and payment created successfully',
     };
   },
 
   getBookings: async (params) => {
     const response = await api.get('/reservations/', { params });
-    const items = Array.isArray(response.data)
-      ? response.data.map(normalizeReservation)
-      : [];
-    return {
-      items,
-      total: items.length,
-      stats: buildStats(items),
-    };
+    const items = Array.isArray(response.data) ? response.data.map(normalizeReservation) : [];
+    return { items, total: items.length, stats: buildStats(items) };
   },
 
-  getBooking: async (id) => {
-    const response = await api.get(`/reservations/${id}`);
-    return normalizeReservation(response.data);
-  },
+  getBooking: async (id) => normalizeReservation((await api.get(`/reservations/${id}`)).data),
 
-  cancelBooking: async (id) => {
-    const response = await api.post(`/reservations/${id}/cancel`);
-    return normalizeReservation(response.data);
-  },
+  cancelBooking: async (id) => normalizeReservation((await api.instance.post(`/reservations/${id}/cancel`)).data),
 
-  startParking: async (reservationId) => {
-    const response = await api.post('/parking-sessions/start', {
-      reservation_id: reservationId,
-    });
-    return response.data;
-  },
+  startParking: async (reservationId) => (
+    await api.instance.post('/parking-sessions/start', { reservation_id: reservationId })
+  ).data,
 
   endParking: async (reservationId) => {
     const sessionsResponse = await api.get('/parking-sessions/', {
@@ -88,13 +91,10 @@ export const bookingsService = {
     });
     const activeSession = (Array.isArray(sessionsResponse.data) ? sessionsResponse.data : [])
       .find((session) => session.reservation_id === reservationId);
-
     if (!activeSession) {
       throw new Error('No active parking session was found for this reservation');
     }
-
-    const response = await api.post(`/parking-sessions/${activeSession.id}/end`, {});
-    return response.data;
+    return (await api.instance.post(`/parking-sessions/${activeSession.id}/end`, {})).data;
   },
 
   rebookBooking: async (id) => {
