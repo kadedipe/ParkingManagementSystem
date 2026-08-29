@@ -7,6 +7,19 @@ import api from './api';
 const normalizeReservation = (reservation) => ({
   ...reservation,
   spot_id: reservation.parking_spot_id,
+  date: reservation.start_time,
+  total_amount: reservation.total_price,
+});
+
+const buildStats = (items) => ({
+  total: items.length,
+  active: items.filter((item) => ['confirmed', 'active'].includes(String(item.status).toLowerCase())).length,
+  pending: items.filter((item) => String(item.status).toLowerCase() === 'pending').length,
+  completed: items.filter((item) => String(item.status).toLowerCase() === 'completed').length,
+  cancelled: items.filter((item) => String(item.status).toLowerCase() === 'cancelled').length,
+  totalSpent: items
+    .filter((item) => String(item.status).toLowerCase() === 'completed')
+    .reduce((total, item) => total + Number(item.total_price || 0), 0),
 });
 
 export const bookingsService = {
@@ -44,7 +57,7 @@ export const bookingsService = {
     return {
       items,
       total: items.length,
-      stats: null,
+      stats: buildStats(items),
     };
   },
 
@@ -56,6 +69,28 @@ export const bookingsService = {
   cancelBooking: async (id) => {
     const response = await api.post(`/reservations/${id}/cancel`);
     return normalizeReservation(response.data);
+  },
+
+  startParking: async (reservationId) => {
+    const response = await api.post('/parking-sessions/start', {
+      reservation_id: reservationId,
+    });
+    return response.data;
+  },
+
+  endParking: async (reservationId) => {
+    const sessionsResponse = await api.get('/parking-sessions/', {
+      params: { active_only: true, limit: 100 },
+    });
+    const activeSession = (Array.isArray(sessionsResponse.data) ? sessionsResponse.data : [])
+      .find((session) => session.reservation_id === reservationId);
+
+    if (!activeSession) {
+      throw new Error('No active parking session was found for this reservation');
+    }
+
+    const response = await api.post(`/parking-sessions/${activeSession.id}/end`, {});
+    return response.data;
   },
 
   rebookBooking: async (id) => {
