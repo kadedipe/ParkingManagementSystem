@@ -7,7 +7,7 @@ Cypress.on('uncaught:exception', (error) => {
 });
 
 const authenticate = () => {
-  cy.intercept('GET', '**/v1/charging-stations/**', {
+  cy.intercept('GET', '**/v1/charging-stations*', {
     statusCode: 200,
     body: [
       {
