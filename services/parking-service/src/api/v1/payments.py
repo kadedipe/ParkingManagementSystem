@@ -15,6 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.dependencies import get_current_user
 from src.auth.models import TokenData
 from src.core.database import get_db
+from src.domain.models.billing_adjustment import (
+    BillingAdjustment,
+    BillingAdjustmentStatus,
+    BillingAdjustmentType,
+)
 from src.domain.models.payment import Payment, PaymentMethod, PaymentStatus
 from src.domain.models.reservation import Reservation, ReservationStatus
 
@@ -76,6 +81,24 @@ def _payment_payload(payment: Payment) -> dict[str, Any]:
     }
 
 
+def _adjustment_payload(adjustment: BillingAdjustment) -> dict[str, Any]:
+    return {
+        "id": str(adjustment.id),
+        "reservation_id": str(adjustment.reservation_id),
+        "parking_session_id": str(adjustment.parking_session_id),
+        "payment_id": str(adjustment.payment_id) if adjustment.payment_id else None,
+        "type": adjustment.adjustment_type.value,
+        "status": adjustment.status.value,
+        "reserved_amount": round(float(adjustment.reserved_amount or 0), 2),
+        "actual_amount": round(float(adjustment.actual_amount or 0), 2),
+        "adjustment_amount": round(float(adjustment.adjustment_amount or 0), 2),
+        "currency": adjustment.currency,
+        "provider_reference": adjustment.provider_reference,
+        "created_at": adjustment.created_at.isoformat() if adjustment.created_at else None,
+        "settled_at": adjustment.settled_at.isoformat() if adjustment.settled_at else None,
+    }
+
+
 async def _owned_payment(db: AsyncSession, payment_id: UUID, user_id: UUID) -> Payment:
     result = await db.execute(
         select(Payment).where(Payment.id == payment_id, Payment.user_id == user_id)
@@ -84,6 +107,139 @@ async def _owned_payment(db: AsyncSession, payment_id: UUID, user_id: UUID) -> P
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     return payment
+
+
+async def _stripe_partial_refund(payment: Payment, amount: float) -> str:
+    secret = os.getenv("STRIPE_SECRET_KEY", "").strip()
+    if not secret or not payment.stripe_payment_intent_id:
+        raise HTTPException(status_code=503, detail="Stripe refund configuration is incomplete")
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        response = await client.post(
+            "https://api.stripe.com/v1/refunds",
+            data={
+                "payment_intent": payment.stripe_payment_intent_id,
+                "amount": str(max(0, int(round(amount * 100)))),
+            },
+            auth=(secret, ""),
+            headers={"Idempotency-Key": f"parking-reconcile-credit-{payment.id}-{int(round(amount * 100))}"},
+        )
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    if response.status_code >= 400:
+        message = payload.get("error", {}).get("message") or "Stripe partial refund failed"
+        raise HTTPException(status_code=402, detail=message)
+    return str(payload.get("id") or "")
+
+
+async def reconcile_session_payment(
+    db: AsyncSession,
+    *,
+    user_id: UUID,
+    reservation_id: UUID,
+    parking_session_id: UUID,
+    actual_amount: float,
+) -> dict[str, Any]:
+    existing = (
+        await db.execute(
+            select(BillingAdjustment).where(
+                BillingAdjustment.parking_session_id == parking_session_id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return _adjustment_payload(existing)
+
+    payment = (
+        await db.execute(
+            select(Payment)
+            .where(Payment.reservation_id == reservation_id, Payment.user_id == user_id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    reservation = await db.get(Reservation, reservation_id)
+
+    reserved_amount = round(
+        float(payment.amount if payment is not None else (reservation.total_price if reservation else 0) or 0),
+        2,
+    )
+    actual_amount = round(max(0.0, float(actual_amount or 0)), 2)
+    delta = round(actual_amount - reserved_amount, 2)
+    if abs(delta) < 0.005:
+        adjustment_type = BillingAdjustmentType.NONE
+    elif delta > 0:
+        adjustment_type = BillingAdjustmentType.OVERAGE
+    else:
+        adjustment_type = BillingAdjustmentType.CREDIT
+
+    status = BillingAdjustmentStatus.PENDING
+    provider_reference = None
+    now = datetime.utcnow()
+
+    if adjustment_type == BillingAdjustmentType.NONE:
+        status = BillingAdjustmentStatus.SETTLED
+    elif payment is None or payment.status != PaymentStatus.COMPLETED:
+        status = BillingAdjustmentStatus.PENDING
+    else:
+        provider = _metadata(payment).get("provider", _provider())
+        if provider == "local":
+            metadata = {
+                **_metadata(payment),
+                "reservation_amount": reserved_amount,
+                "actual_session_amount": actual_amount,
+                "reconciliation_amount": delta,
+                "reconciliation_type": adjustment_type.value,
+                "reconciled_at": now.isoformat(),
+            }
+            payment.amount = actual_amount
+            payment.additional_data = metadata
+            payment.updated_at = now
+            status = BillingAdjustmentStatus.SETTLED
+        elif provider == "stripe" and adjustment_type == BillingAdjustmentType.CREDIT:
+            provider_reference = await _stripe_partial_refund(payment, abs(delta))
+            metadata = {
+                **_metadata(payment),
+                "reservation_amount": reserved_amount,
+                "actual_session_amount": actual_amount,
+                "reconciliation_amount": delta,
+                "reconciliation_type": adjustment_type.value,
+                "reconciliation_refund_id": provider_reference,
+                "reconciled_at": now.isoformat(),
+            }
+            payment.amount = actual_amount
+            payment.additional_data = metadata
+            payment.updated_at = now
+            status = BillingAdjustmentStatus.SETTLED
+        else:
+            metadata = {
+                **_metadata(payment),
+                "reservation_amount": reserved_amount,
+                "actual_session_amount": actual_amount,
+                "reconciliation_amount": delta,
+                "reconciliation_type": adjustment_type.value,
+                "reconciliation_pending": True,
+            }
+            payment.additional_data = metadata
+            payment.updated_at = now
+
+    adjustment = BillingAdjustment(
+        user_id=user_id,
+        reservation_id=reservation_id,
+        parking_session_id=parking_session_id,
+        payment_id=payment.id if payment else None,
+        adjustment_type=adjustment_type,
+        status=status,
+        reserved_amount=reserved_amount,
+        actual_amount=actual_amount,
+        adjustment_amount=delta,
+        currency=payment.currency if payment else "USD",
+        provider_reference=provider_reference,
+        settled_at=now if status == BillingAdjustmentStatus.SETTLED else None,
+    )
+    db.add(adjustment)
+    await db.flush()
+    return _adjustment_payload(adjustment)
 
 
 @router.post("/", response_model=PaymentResponse, status_code=201)
@@ -191,6 +347,21 @@ async def payment_stats(
     }
 
 
+@router.get("/adjustments")
+async def list_billing_adjustments(
+    limit: int = 100,
+    current_user: TokenData = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(BillingAdjustment)
+        .where(BillingAdjustment.user_id == UUID(current_user.user_id))
+        .order_by(BillingAdjustment.created_at.desc())
+        .limit(max(1, min(limit, 500)))
+    )
+    return [_adjustment_payload(item) for item in result.scalars().all()]
+
+
 async def _stripe_process(payment: Payment, token: Optional[str]) -> tuple[str, dict[str, Any]]:
     secret = os.getenv("STRIPE_SECRET_KEY", "").strip()
     if not secret:
@@ -280,8 +451,6 @@ async def process_payment(
         payment.stripe_payment_intent_id = (
             provider_reference or payment.stripe_payment_intent_id
         )
-        # Assign a new dict object after the intermediate commit. Reusing and
-        # mutating the old JSON object can be treated as unchanged by SQLAlchemy.
         payment.additional_data = completed_metadata
         payment.status = PaymentStatus.COMPLETED
         await db.commit()
@@ -318,6 +487,11 @@ async def payment_receipt(
         "provider_reference": payment.stripe_payment_intent_id or metadata.get("provider_reference"),
         "processed_at": metadata.get("processed_at"),
         "refunded_at": metadata.get("refunded_at"),
+        "reservation_amount": metadata.get("reservation_amount"),
+        "actual_session_amount": metadata.get("actual_session_amount"),
+        "reconciliation_amount": metadata.get("reconciliation_amount"),
+        "reconciliation_type": metadata.get("reconciliation_type"),
+        "reconciled_at": metadata.get("reconciled_at"),
     }
 
 
