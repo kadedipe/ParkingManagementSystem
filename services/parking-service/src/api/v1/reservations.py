@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +47,12 @@ class UpcomingReservationResponse(BaseModel):
     status: str
 
 
+def _to_naive_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 async def get_reservation_service(db: AsyncSession = Depends(get_db)) -> ReservationService:
     repo = ReservationRepository(db)
     spot_repo = ParkingSpotRepository(db)
@@ -60,6 +66,8 @@ async def create_reservation(
     service: ReservationService = Depends(get_reservation_service),
 ):
     data = reservation.model_dump()
+    data["start_time"] = _to_naive_utc(data["start_time"])
+    data["end_time"] = _to_naive_utc(data["end_time"])
     data["user_id"] = UUID(current_user.user_id)
     return await service.create_reservation(data)
 
@@ -80,12 +88,7 @@ async def get_upcoming_reservations(
     current_user: TokenData = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return the authenticated user's future pending/confirmed reservations.
-
-    This endpoint is intentionally independent of parking dashboard aggregates so
-    the Dashboard Upcoming Reservations table can still populate if another
-    metric source is temporarily unavailable.
-    """
+    """Return the authenticated user's future pending/confirmed reservations."""
     user_id = UUID(current_user.user_id)
     now = datetime.utcnow()
     rows = await db.execute(
