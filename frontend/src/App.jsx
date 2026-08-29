@@ -30,6 +30,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Vehicles = lazy(() => import('./pages/VehiclesPage'));
 const Parking = lazy(() => import('./pages/ParkingSearchPage'));
+const Bookings = lazy(() => import('./pages/BookingsPage'));
 const Charging = lazy(() => import('./pages/ChargingPage'));
 const Payments = lazy(() => import('./pages/Payments'));
 const Notifications = lazy(() => import('./pages/Notifications'));
@@ -178,9 +179,11 @@ function App() {
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/vehicles/:id" element={<Vehicles />} />
         <Route path="/parking" element={<Parking />} />
-        <Route path="/parking/sessions" element={<Parking />} />
+        <Route path="/parking/sessions" element={<Bookings />} />
         <Route path="/parking/spots" element={<Parking />} />
-        <Route path="/parking/reservations" element={<Parking />} />
+        <Route path="/parking/reservations" element={<Bookings />} />
+        <Route path="/bookings" element={<Bookings />} />
+        <Route path="/calendar" element={<Bookings />} />
         <Route path="/charging" element={<Charging />} />
         <Route path="/charging/sessions" element={<Charging />} />
         <Route path="/charging/stations" element={<Charging />} />
