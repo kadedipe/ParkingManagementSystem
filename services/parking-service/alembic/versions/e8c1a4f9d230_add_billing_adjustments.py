@@ -17,8 +17,6 @@ depends_on = None
 def upgrade():
     adjustment_type = sa.Enum("OVERAGE", "CREDIT", "NONE", name="billingadjustmenttype")
     adjustment_status = sa.Enum("SETTLED", "PENDING", "FAILED", name="billingadjustmentstatus")
-    adjustment_type.create(op.get_bind(), checkfirst=True)
-    adjustment_status.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "billing_adjustments",
