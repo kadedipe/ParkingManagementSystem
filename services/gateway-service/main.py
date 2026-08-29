@@ -19,6 +19,17 @@ SERVICE_MAP = {
     "charging-stations": "charging",
     "charging-sessions": "charging",
 }
+
+# Older frontend bundles used /parking/<resource>. Keep these aliases at the
+# gateway boundary so an in-flight Railway frontend deployment does not break
+# while the canonical API remains /<resource> -> /v1/<resource> upstream.
+LEGACY_PARKING_ALIASES = {
+    "lots": "parking-lots",
+    "spots": "parking-spots",
+    "sessions": "parking-sessions",
+    "reservations": "reservations",
+}
+
 DEFAULT_URLS = {
     "parking": "http://parking-service:8080",
     "vehicle": "http://vehicle-service:8080",
@@ -50,7 +61,7 @@ async def lifespan(app: FastAPI):
     await client.aclose()
 
 
-app = FastAPI(title="Parking API Gateway", version="2.1.1", lifespan=lifespan)
+app = FastAPI(title="Parking API Gateway", version="2.1.2", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS,
@@ -100,6 +111,12 @@ def resolve(path: str):
         first, rest = parts[1], parts[2:]
     else:
         rest = parts[1:]
+
+    if first == "parking" and rest:
+        canonical = LEGACY_PARKING_ALIASES.get(rest[0])
+        if canonical:
+            first, rest = canonical, rest[1:]
+
     service = SERVICE_MAP.get(first)
     if not service:
         return None

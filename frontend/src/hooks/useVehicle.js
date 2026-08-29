@@ -99,6 +99,17 @@ export const useVehicles = () => {
     }
   }, []);
 
+  const validatePlate = useCallback(async (plate) => {
+    const normalized = String(plate || '').trim().toUpperCase();
+    if (!normalized) return { exists: false, valid: false };
+
+    const response = await vehiclesService.getVehicles({ limit: 100 });
+    const exists = (response.items || []).some(
+      (vehicle) => String(vehicle.plate_number || vehicle.license_plate || '').trim().toUpperCase() === normalized
+    );
+    return { exists, valid: !exists };
+  }, []);
+
   return {
     vehicles,
     loading,
@@ -111,6 +122,7 @@ export const useVehicles = () => {
     updateVehicle,
     deleteVehicle,
     exportVehicles,
+    validatePlate,
   };
 };
 

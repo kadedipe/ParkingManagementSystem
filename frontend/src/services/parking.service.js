@@ -4,12 +4,19 @@
 
 import apiService from './api';
 
+const asArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
 export const parkingService = {
   search: async (params) => {
     const lotsResponse = await apiService.get('/parking-lots/', {
       params: { skip: 0, limit: 100 },
     });
-    const lots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
+    const lots = asArray(lotsResponse.data);
     const spotResults = await Promise.allSettled(
       lots.map((lot) =>
         apiService.get('/parking-spots/', {
@@ -23,11 +30,12 @@ export const parkingService = {
     );
 
     const query = String(params?.query || '').trim().toLowerCase();
-    const requestedStatuses = Array.isArray(params?.statuses) ? params.statuses : [];
+    const requestedStatuses = (Array.isArray(params?.statuses) ? params.statuses : [])
+      .map((status) => String(status).toLowerCase());
     const spots = spotResults.flatMap((result, index) => {
-      if (result.status !== 'fulfilled' || !Array.isArray(result.value.data)) return [];
+      if (result.status !== 'fulfilled') return [];
       const lot = lots[index];
-      return result.value.data.map((spot) => ({
+      return asArray(result.value.data).map((spot) => ({
         ...spot,
         parking_lot: lot,
         parking_lot_name: lot.name,
@@ -41,7 +49,8 @@ export const parkingService = {
     }).filter((spot) => {
       const matchesQuery = !query || [spot.name, spot.number, spot.parking_lot_name]
         .some((value) => String(value || '').toLowerCase().includes(query));
-      const matchesStatus = requestedStatuses.length === 0 || requestedStatuses.includes(spot.status);
+      const status = String(spot.status || '').toLowerCase();
+      const matchesStatus = requestedStatuses.length === 0 || requestedStatuses.includes(status);
       return matchesQuery && matchesStatus;
     });
 
@@ -82,43 +91,43 @@ export const parkingService = {
 
   // Sessions
   startSession: async (data) => {
-    const response = await apiService.post('/parking/sessions/start', data);
+    const response = await apiService.post('/parking-sessions/start', data);
     return response.data;
   },
 
   endSession: async (id) => {
-    const response = await apiService.post(`/parking/sessions/${id}/end`);
+    const response = await apiService.post(`/parking-sessions/${id}/end`);
     return response.data;
   },
 
   getActiveSessions: async () => {
-    const response = await apiService.get('/parking/sessions/active');
+    const response = await apiService.get('/parking-sessions', { params: { active_only: true } });
     return response.data;
   },
 
   getSessionHistory: async (params) => {
-    const response = await apiService.get('/parking/sessions/history', { params });
+    const response = await apiService.get('/parking-sessions', { params });
     return response.data;
   },
 
   // Reservations
   createReservation: async (data) => {
-    const response = await apiService.post('/parking/reservations', data);
+    const response = await apiService.post('/reservations', data);
     return response.data;
   },
 
   cancelReservation: async (id) => {
-    const response = await apiService.post(`/parking/reservations/${id}/cancel`);
+    const response = await apiService.post(`/reservations/${id}/cancel`);
     return response.data;
   },
 
   getReservations: async () => {
-    const response = await apiService.get('/parking/reservations');
+    const response = await apiService.get('/reservations');
     return response.data;
   },
 
   getUpcomingReservations: async () => {
-    const response = await apiService.get('/parking/reservations/upcoming');
+    const response = await apiService.get('/reservations', { params: { status: 'confirmed' } });
     return response.data;
   },
 };
