@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.auth import current_user_id
@@ -33,10 +34,31 @@ class VehicleIn(BaseModel):
     is_default: bool = False
 
 
-class VehicleOut(VehicleIn):
+class VehicleOut(BaseModel):
+    """Response schema intentionally tolerates legacy persisted values.
+
+    Input validation remains strict in VehicleIn, but old production rows may
+    contain values (for example an empty VIN) created before that validation
+    existed. A single legacy row must not turn GET /vehicles into HTTP 500.
+    """
+
     model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     user_id: UUID
+    name: str
+    plate_number: str
+    vin: str | None = None
+    color: str | None = None
+    year: int | None = None
+    make: str | None = None
+    model: str | None = None
+    is_ev: bool = False
+    battery_capacity: float | None = None
+    connector_type: str | None = None
+    max_charging_power: int | None = None
+    mileage: int | None = None
+    is_default: bool = False
     status: str
 
 
@@ -54,6 +76,15 @@ async def _get(db: AsyncSession, user_id: UUID, vehicle_id: UUID) -> Vehicle:
     return vehicle
 
 
+def _clean_vehicle_input(data: VehicleIn) -> dict:
+    payload = data.model_dump()
+    payload["plate_number"] = payload["plate_number"].strip().upper()
+    payload["name"] = payload["name"].strip()
+    if payload.get("vin"):
+        payload["vin"] = payload["vin"].strip().upper()
+    return payload
+
+
 @router.get("", response_model=list[VehicleOut])
 @router.get("/", response_model=list[VehicleOut])
 async def list_vehicles(
@@ -62,14 +93,18 @@ async def list_vehicles(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
 ):
-    result = await db.execute(
-        select(Vehicle)
-        .where(Vehicle.user_id == user_id, Vehicle.status != "deleted")
-        .order_by(Vehicle.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    return list(result.scalars())
+    try:
+        result = await db.execute(
+            select(Vehicle)
+            .where(Vehicle.user_id == user_id, Vehicle.status != "deleted")
+            .order_by(Vehicle.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(result.scalars())
+    except SQLAlchemyError as exc:
+        await db.rollback()
+        raise HTTPException(503, "Vehicle storage is temporarily unavailable") from exc
 
 
 @router.post("", response_model=VehicleOut, status_code=201)
@@ -79,14 +114,22 @@ async def create_vehicle(
     db: AsyncSession = Depends(get_db),
     user_id: UUID = Depends(current_user_id),
 ):
+    payload = _clean_vehicle_input(data)
     if data.is_default:
         await db.execute(
             update(Vehicle).where(Vehicle.user_id == user_id).values(is_default=False)
         )
-    vehicle = Vehicle(user_id=user_id, **data.model_dump())
+    vehicle = Vehicle(user_id=user_id, **payload)
     db.add(vehicle)
-    await db.commit()
-    await db.refresh(vehicle)
+    try:
+        await db.commit()
+        await db.refresh(vehicle)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(409, "A vehicle with this license plate or VIN already exists") from exc
+    except SQLAlchemyError as exc:
+        await db.rollback()
+        raise HTTPException(503, "Vehicle storage is temporarily unavailable") from exc
     return vehicle
 
 
@@ -148,10 +191,17 @@ async def update_vehicle(
         await db.execute(
             update(Vehicle).where(Vehicle.user_id == user_id).values(is_default=False)
         )
-    for key, value in data.model_dump().items():
+    for key, value in _clean_vehicle_input(data).items():
         setattr(vehicle, key, value)
-    await db.commit()
-    await db.refresh(vehicle)
+    try:
+        await db.commit()
+        await db.refresh(vehicle)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(409, "A vehicle with this license plate or VIN already exists") from exc
+    except SQLAlchemyError as exc:
+        await db.rollback()
+        raise HTTPException(503, "Vehicle storage is temporarily unavailable") from exc
     return vehicle
 
 
