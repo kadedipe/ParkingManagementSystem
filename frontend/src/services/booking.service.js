@@ -51,9 +51,6 @@ export const bookingsService = {
       });
       payment = paymentResponse.data;
 
-      // The built-in local provider is transactional and needs no external
-      // credentials, so complete it immediately. External providers keep the
-      // payment pending until their tokenized checkout is completed.
       if (payment?.provider === 'local' && payment?.status !== 'completed') {
         payment = (await api.instance.post(`/payments/${payment.id}/process`, {})).data;
       } else if (payment?.status !== 'completed') {
@@ -82,14 +79,27 @@ export const bookingsService = {
 
   getBooking: async (id) => normalizeReservation((await api.get(`/reservations/${id}`)).data),
   cancelBooking: async (id) => normalizeReservation((await api.instance.post(`/reservations/${id}/cancel`)).data),
-  startParking: async (reservationId) => (await api.instance.post('/parking-sessions/start', { reservation_id: reservationId })).data,
+
+  getParkingSessions: async ({ activeOnly = false, limit = 100 } = {}) => {
+    const response = await api.get('/parking-sessions/', {
+      params: { active_only: activeOnly, limit },
+    });
+    return Array.isArray(response.data) ? response.data : [];
+  },
+
+  startParking: async (reservationId) => (
+    await api.instance.post('/parking-sessions/start', { reservation_id: reservationId })
+  ).data,
+
+  endParkingSession: async (sessionId) => (
+    await api.instance.post(`/parking-sessions/${sessionId}/end`, {})
+  ).data,
 
   endParking: async (reservationId) => {
-    const sessionsResponse = await api.get('/parking-sessions/', { params: { active_only: true, limit: 100 } });
-    const activeSession = (Array.isArray(sessionsResponse.data) ? sessionsResponse.data : [])
-      .find((session) => session.reservation_id === reservationId);
+    const sessions = await bookingsService.getParkingSessions({ activeOnly: true, limit: 100 });
+    const activeSession = sessions.find((session) => session.reservation_id === reservationId);
     if (!activeSession) throw new Error('No active parking session was found for this reservation');
-    return (await api.instance.post(`/parking-sessions/${activeSession.id}/end`, {})).data;
+    return bookingsService.endParkingSession(activeSession.id);
   },
 
   rebookBooking: async (id) => {
