@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -17,7 +17,6 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  FilterList as FilterIcon,
   MyLocation as MyLocationIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
@@ -39,6 +38,7 @@ export const ParkingSearchPage = () => {
   const { user } = useAuth();
   const { searchParking } = useParking();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const requestSequence = useRef(0);
 
   const reservationMode = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -69,18 +69,21 @@ export const ParkingSearchPage = () => {
   });
 
   const performSearch = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     setIsSearching(true);
     setSearchError('');
     try {
       const response = await searchParking({ ...filters, page, limit: pageSize });
+      if (requestId !== requestSequence.current) return;
       setSpots(response?.items || []);
       setTotal(response?.total || 0);
     } catch (error) {
-      setSpots([]);
-      setTotal(0);
+      if (requestId !== requestSequence.current) return;
       setSearchError(error?.message || 'Failed to search parking spots');
     } finally {
-      setIsSearching(false);
+      if (requestId === requestSequence.current) {
+        setIsSearching(false);
+      }
     }
   }, [filters, page, pageSize, searchParking]);
 
@@ -90,6 +93,18 @@ export const ParkingSearchPage = () => {
 
   const handleFilterChange = (nextFilters) => {
     setFilters((current) => ({ ...current, ...nextFilters }));
+    setPage(1);
+  };
+
+  const handleSearch = (queryOrParams) => {
+    const nextQuery = typeof queryOrParams === 'string'
+      ? queryOrParams
+      : String(queryOrParams?.query || '');
+
+    setFilters((current) => {
+      if (current.query === nextQuery) return current;
+      return { ...current, query: nextQuery };
+    });
     setPage(1);
   };
 
@@ -175,7 +190,7 @@ export const ParkingSearchPage = () => {
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2, maxWidth: '100%', overflow: 'hidden' }}>
         <ParkingSearch
-          onSearch={(query) => handleFilterChange({ query })}
+          onSearch={handleSearch}
           onFilterChange={handleFilterChange}
           initialFilters={filters}
           compact={isMobile}
