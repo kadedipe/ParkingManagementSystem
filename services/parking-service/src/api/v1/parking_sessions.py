@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +16,7 @@ from src.domain.models.parking_spot import ParkingSpot, ParkingSpotStatus
 from src.domain.models.reservation import Reservation, ReservationStatus
 from src.domain.models.user import User
 from src.websocket.manager import manager
+from .payments import reconcile_session_payment
 
 router = APIRouter(prefix="/parking-sessions", tags=["parking-sessions"])
 
@@ -41,9 +42,10 @@ class SessionResponse(BaseModel):
     duration_minutes: Optional[float]
     hourly_rate: float
     total_amount: Optional[float]
+    billing: Optional[dict[str, Any]] = None
 
 
-def _session_payload(session: ParkingSession) -> dict:
+def _session_payload(session: ParkingSession, billing: Optional[dict[str, Any]] = None) -> dict:
     return {
         "id": session.id,
         "user_id": session.user_id,
@@ -56,6 +58,7 @@ def _session_payload(session: ParkingSession) -> dict:
         "duration_minutes": session.duration_minutes,
         "hourly_rate": float(session.hourly_rate or 0),
         "total_amount": float(session.total_amount) if session.total_amount is not None else None,
+        "billing": billing,
     }
 
 
@@ -201,10 +204,17 @@ async def end_session(
     spot.status = ParkingSpotStatus.AVAILABLE
 
     synced_lot = await _sync_lot_inventory(db, spot.parking_lot_id)
+    billing = await reconcile_session_payment(
+        db,
+        user_id=user_id,
+        reservation_id=session.reservation_id,
+        parking_session_id=session.id,
+        actual_amount=total_amount,
+    )
     await db.commit()
     await db.refresh(session)
     await _broadcast_lot(synced_lot)
-    return _session_payload(session)
+    return _session_payload(session, billing=billing)
 
 
 @router.get("/", response_model=List[SessionResponse])
@@ -248,7 +258,7 @@ async def get_dashboard_metrics(
     sessions = (
         await db.execute(
             select(ParkingSession)
-            .where(ParkingSession.start_time >= previous_week_start)
+            .where(or_(ParkingSession.start_time >= previous_week_start, ParkingSession.status == ParkingSessionStatus.ACTIVE))
             .order_by(ParkingSession.start_time.desc())
         )
     ).scalars().all()
