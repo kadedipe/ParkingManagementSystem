@@ -3,7 +3,7 @@
 **Author:** Kolapo Adedipe  
 **Date:** 30 August 2026  
 **Repository:** `kadedipe/ParkingManagementSystem`  
-**Current package baseline:** `main` commit `0a716a16c3bec3eec49b0e9e39fb91c12da67daa`
+**Implementation baseline:** `main` after PR #48 (`0a716a16c3bec3eec49b0e9e39fb91c12da67daa`)
 
 ## Major completed implementation stages
 
@@ -20,14 +20,16 @@
 11. Reservation Calendar now exposes Start Parking / End Parking against persistent session APIs.
 12. Automatic billing reconciliation now records overage/credit/none adjustments when a session ends. Local adjustments settle automatically; Stripe credits can use partial refunds while unauthorized overage charges remain pending.
 
-## Latest observed production evidence
+## Verified production evidence
 
-Before deployment/re-observation of the final two merged refinements, production showed:
+Production verification includes:
 
-- Dashboard: 3 total spots, 2 available, 0 active sessions and one confirmed upcoming reservation for P-001.
-- Payments: Local processor, one completed payment, $1.00 completed payment value.
-- Reports for 2026-08-29: 0.00% occupancy, $1.00 revenue, activity 2, reservations 1, payments 1.
+- Dashboard: persisted parking inventory, reservations, session-aware operational metrics and EV charging data.
+- Payments: Local processor with persistent completed payments and receipts.
+- Reports & Analytics: dated historical reports generated from persisted reservations, sessions and completed payments.
+- PR #47: Start Parking / End Parking session workflow redeployed to Railway and verified in production.
+- PR #48: automatic overage/underage billing reconciliation redeployed to Railway and verified in production.
 
-## Deployment distinction
+## Deployment status
 
-PR #47 (parking-session controls) and PR #48 (automatic billing reconciliation) are merged repository capabilities. They must be redeployed and then re-observed on Railway before they are described as verified live production behavior.
+PR #47 (parking-session controls) and PR #48 (automatic billing reconciliation) are merged, redeployed to Railway, and verified as live production capabilities. The earlier redeployment/re-observation caveat is no longer applicable.
