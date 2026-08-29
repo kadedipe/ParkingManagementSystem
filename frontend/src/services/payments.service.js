@@ -1,29 +1,19 @@
-import api from './api';
+const emptyPayments = () => [];
 
 export const paymentsService = {
-  getPayments: async (params = {}) => {
-    const response = await api.get('/payments', { params });
-    return response.data;
+  // Payment persistence is not implemented by a backend service yet. Return a
+  // clean empty state instead of generating production 404s from placeholder
+  // frontend routes. These methods can be switched back to API calls when the
+  // payment service is introduced.
+  getPayments: async () => emptyPayments(),
+  getPaymentHistory: async () => emptyPayments(),
+  getPaymentMethods: async () => emptyPayments(),
+  getPaymentStats: async () => ({ total: 0, completed: 0, pending: 0 }),
+  processPayment: async () => {
+    throw new Error('Payment processing is not available yet.');
   },
-  getPaymentHistory: async (params = {}) => {
-    const response = await api.get('/payments/history', { params });
-    return response.data;
-  },
-  getPaymentMethods: async (params = {}) => {
-    const response = await api.get('/payments/methods', { params });
-    return response.data;
-  },
-  getPaymentStats: async (params = {}) => {
-    const response = await api.get('/payments/stats', { params });
-    return response.data;
-  },
-  processPayment: async (paymentId, data = {}) => {
-    const response = await api.post(`/payments/${paymentId}/process`, data);
-    return response.data;
-  },
-  getPaymentReceipt: async (paymentId, params = {}) => {
-    const response = await api.get(`/payments/${paymentId}/receipt`, { params });
-    return response.data;
+  getPaymentReceipt: async () => {
+    throw new Error('Payment receipts are not available yet.');
   },
 };
 
