@@ -1,4 +1,29 @@
 describe('login visual accessibility', () => {
+  it('renders the dashboard after restoring an authenticated session', () => {
+    cy.intercept('GET', '**/auth/me', {
+      statusCode: 200,
+      body: {
+        id: 'dashboard-user',
+        email: 'dashboard@example.com',
+        firstName: 'Dashboard',
+        role: 'user',
+      },
+    });
+    cy.intercept('GET', '**/notifications*', {
+      statusCode: 200,
+      body: { items: [], unreadCount: 0, total: 0 },
+    });
+
+    cy.visit('/dashboard', {
+      onBeforeLoad(win) {
+        win.localStorage.setItem('auth_token', 'valid-dashboard-token');
+      },
+    });
+
+    cy.contains('Dashboard', { timeout: 10000 }).should('be.visible');
+    cy.contains('Loading application...').should('not.exist');
+  });
+
   it('does not request protected notification data before login', () => {
     let notificationRequests = 0;
 

@@ -76,7 +76,7 @@ function App() {
   const theme = useTheme();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { themeMode } = useAppTheme();
-  const { showToast } = useNotifications();
+  const { addToast: showToast } = useNotifications();
   const { trackPerformance } = usePerformance();
 
   // Track page views
