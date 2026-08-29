@@ -32,7 +32,9 @@ export const bookingsService = {
     const durationHours = Number(booking.duration || 1);
     const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
 
-    const createResponse = await api.post('/reservations/', {
+    // Reservation creation is non-idempotent. Use the Axios instance directly
+    // so a server 5xx is not replayed by the generic retry wrapper.
+    const createResponse = await api.instance.post('/reservations/', {
       parking_spot_id: booking.spot_id,
       vehicle_id: booking.vehicle_id || null,
       start_time: start.toISOString(),
@@ -40,7 +42,9 @@ export const bookingsService = {
     });
 
     const created = createResponse.data;
-    const confirmResponse = await api.post(`/reservations/${created.id}/confirm`);
+
+    // Confirmation also mutates reservation/spot state and must execute once.
+    const confirmResponse = await api.instance.post(`/reservations/${created.id}/confirm`);
 
     return {
       success: true,
