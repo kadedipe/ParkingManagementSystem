@@ -8,22 +8,24 @@ export const paymentsService = {
   getPaymentMethods: async () => unwrap(await api.get('/payments/methods')),
   getPaymentStats: async () => unwrap(await api.get('/payments/stats')),
 
+  // Payment mutations are non-idempotent. Use the Axios instance directly so
+  // the generic API retry wrapper cannot replay a charge/refund on a 5xx.
   createPayment: async ({ reservationId, paymentMethod = 'credit_card', currency = 'USD' }) =>
-    unwrap(await api.post('/payments/', {
+    unwrap(await api.instance.post('/payments/', {
       reservation_id: reservationId,
       payment_method: paymentMethod,
       currency,
-    }, { retry: false })),
+    })),
 
   processPayment: async (paymentId, providerPaymentMethodId = null) =>
-    unwrap(await api.post(`/payments/${paymentId}/process`, {
+    unwrap(await api.instance.post(`/payments/${paymentId}/process`, {
       provider_payment_method_id: providerPaymentMethodId,
-    }, { retry: false })),
+    })),
 
   getPaymentReceipt: async (paymentId) => unwrap(await api.get(`/payments/${paymentId}/receipt`)),
 
   refundPayment: async (paymentId) =>
-    unwrap(await api.post(`/payments/${paymentId}/refund`, {}, { retry: false })),
+    unwrap(await api.instance.post(`/payments/${paymentId}/refund`, {})),
 };
 
 export default paymentsService;
