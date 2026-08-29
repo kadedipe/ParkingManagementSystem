@@ -45,9 +45,8 @@ export const notificationsService = {
     const response = await api.get('/notifications/unread-count', {
       retry: false,
       queueWhenOffline: false,
-      skipAuthRefresh: true,
     });
-    return response.data;
+    return Number(response.data?.count ?? response.data?.unread_count ?? response.data ?? 0);
   },
 
   // Preferences
