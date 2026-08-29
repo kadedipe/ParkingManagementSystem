@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from '@mui/material/styles';
@@ -18,6 +18,19 @@ import { PageLoader } from './components/common/PageLoader';
 import './styles/index.css';
 import './styles/globals.css';
 import { theme } from './theme';
+
+const EvidenceParking = lazy(() => import('./pages/ParkingSearchPage'));
+const EvidenceCharging = lazy(() => import('./pages/ChargingPage'));
+
+const FacultyEvidenceApp = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Routes>
+      <Route path="/parking" element={<EvidenceParking />} />
+      <Route path="/charging" element={<EvidenceCharging />} />
+      <Route path="*" element={<Navigate to="/parking" replace />} />
+    </Routes>
+  </Suspense>
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +61,7 @@ window.addEventListener('unhandledrejection', (event) => {
 export function renderApp() {
   const rootElement = document.getElementById('root');
   if (!rootElement) throw new Error('Root element not found');
+  const evidenceMode = import.meta.env.VITE_EVIDENCE_MODE === 'true';
 
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
@@ -59,10 +73,14 @@ export function renderApp() {
                 <CssBaseline />
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <AuthProvider>
-                    <NotificationProvider>
-                      <App />
-                      <Toaster position="top-right" />
-                    </NotificationProvider>
+                    {evidenceMode ? (
+                      <FacultyEvidenceApp />
+                    ) : (
+                      <NotificationProvider>
+                        <App />
+                        <Toaster position="top-right" />
+                      </NotificationProvider>
+                    )}
                   </AuthProvider>
                 </LocalizationProvider>
               </ThemeProvider>

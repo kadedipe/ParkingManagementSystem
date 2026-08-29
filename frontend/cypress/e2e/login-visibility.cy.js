@@ -1,4 +1,20 @@
 describe('login visual accessibility', () => {
+  it('does not request protected notification data before login', () => {
+    let notificationRequests = 0;
+
+    cy.intercept('GET', '**/notifications*', (request) => {
+      notificationRequests += 1;
+      request.reply({ statusCode: 401, body: { detail: 'Unauthorized' } });
+    });
+
+    cy.visit('/login');
+    cy.get('input[placeholder="Enter your email"]', { timeout: 10000 })
+      .should('be.visible');
+    cy.wait(1000).then(() => {
+      expect(notificationRequests).to.equal(0);
+    });
+  });
+
   it('recovers from a stale token when session validation hangs', () => {
     const startedAt = Date.now();
 

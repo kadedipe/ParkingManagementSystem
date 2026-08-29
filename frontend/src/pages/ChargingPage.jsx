@@ -27,6 +27,22 @@ import chargingHero from '../assets/images/IMAGES/charging_station.avif';
 import chargingStationsImage from '../assets/images/IMAGES/ev-charging-stations.jpg';
 import chargingWorkflow from '../assets/images/IMAGES/EV Charging Workflow.png';
 
+const evidenceStations = import.meta.env.VITE_EVIDENCE_MODE === 'true'
+  ? [
+      {
+        id: 'station-001',
+        name: 'Main Campus EV Hub',
+        status: 'active',
+        total_connectors: 8,
+        available_connectors: 5,
+        occupied_connectors: 3,
+        power_level: 'DC fast',
+        price_per_kwh: 0.42,
+        address: { street: 'Faculty Avenue', city: 'Campus' },
+      },
+    ]
+  : null;
+
 const getAddress = (address) => {
   if (!address) return 'Location not provided';
   if (typeof address === 'string') return address;
@@ -49,11 +65,17 @@ const getStatusColor = (status) => {
 };
 
 function ChargingPage() {
-  const [stations, setStations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [stations, setStations] = useState(evidenceStations || []);
+  const [loading, setLoading] = useState(!evidenceStations);
   const [error, setError] = useState('');
 
   const loadStations = useCallback(async () => {
+    if (evidenceStations) {
+      setStations(evidenceStations);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError('');
 

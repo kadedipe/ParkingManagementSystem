@@ -8,13 +8,19 @@ import { config } from '../config';
 
 export const AuthContext = createContext(null);
 
+const evidenceUser = import.meta.env.VITE_EVIDENCE_MODE === 'true'
+  ? { id: 'faculty-review-user', email: 'review@example.edu', firstName: 'Kolapo', role: 'admin' }
+  : null;
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(evidenceUser);
+  const [loading, setLoading] = useState(!evidenceUser);
   const [error, setError] = useState(null);
 
   // Load user on mount
   useEffect(() => {
+    if (evidenceUser) return undefined;
+
     const controller = new AbortController();
     let isMounted = true;
 

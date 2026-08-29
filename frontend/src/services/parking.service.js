@@ -5,6 +5,11 @@
 import apiService from './api';
 
 export const parkingService = {
+  search: async (params) => {
+    const response = await apiService.get('/parking/spots', { params });
+    return response.data;
+  },
+
   // Spots
   getSpots: async (params) => {
     const response = await apiService.get('/parking/spots', { params });

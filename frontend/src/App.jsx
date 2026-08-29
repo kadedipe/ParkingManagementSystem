@@ -133,6 +133,27 @@ function App() {
     return <PageLoader />;
   }
 
+  // The faculty-evidence build renders the real feature pages without the
+  // authenticated navigation shell. This keeps screenshot generation focused
+  // on the parking and charging interfaces and independent of background
+  // integrations that are not part of the evidence being captured.
+  if (import.meta.env.VITE_EVIDENCE_MODE === 'true') {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+        <CssBaseline />
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/parking" element={<Parking />} />
+              <Route path="/charging" element={<Charging />} />
+              <Route path="*" element={<Navigate to="/parking" replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+      </Box>
+    );
+  }
+
   // ==========================================================================
   // Route Configuration
   // ==========================================================================
