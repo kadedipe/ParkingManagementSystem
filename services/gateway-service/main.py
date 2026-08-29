@@ -15,6 +15,7 @@ SERVICE_MAP = {
     "parking-sessions": "parking",
     "reservations": "parking",
     "payments": "parking",
+    "reports": "parking",
     "vehicles": "vehicle",
     "notifications": "notification",
     "charging-stations": "charging",
@@ -27,6 +28,7 @@ LEGACY_PARKING_ALIASES = {
     "sessions": "parking-sessions",
     "reservations": "reservations",
     "payments": "payments",
+    "reports": "reports",
 }
 
 DEFAULT_URLS = {
@@ -53,7 +55,7 @@ async def lifespan(app: FastAPI):
     await client.aclose()
 
 
-app = FastAPI(title="Parking API Gateway", version="2.2.0", lifespan=lifespan)
+app = FastAPI(title="Parking API Gateway", version="2.3.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=CORS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
