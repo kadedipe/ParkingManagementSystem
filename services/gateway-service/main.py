@@ -57,7 +57,6 @@ app = FastAPI(title="Parking API Gateway", version="2.2.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=CORS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
-@app.get("", include_in_schema=False)
 @app.get("/", tags=["meta"])
 async def root():
     return {"status": "healthy", "service": "api-gateway", "version": app.version, "health": "/health", "readiness": "/ready", "documentation": "/docs"}
