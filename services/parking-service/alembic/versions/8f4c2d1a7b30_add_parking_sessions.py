@@ -18,7 +18,6 @@ def upgrade() -> None:
         "ACTIVE", "COMPLETED", "CANCELLED",
         name="parkingsessionstatus",
     )
-    session_status.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "parking_sessions",
