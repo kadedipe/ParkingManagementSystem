@@ -68,6 +68,25 @@ export const dashboardService = {
       reservations_data: reservations.slice(0, 10),
     };
   },
+
+  getOccupancy: async () => {
+    const dashboard = await dashboardService.getDashboard();
+    const stats = dashboard.stats || {};
+    const total = Number(stats.total_spots || 0);
+    const occupied = Number(stats.occupied_spots || 0);
+    return total > 0 ? Math.round((occupied / total) * 100) : 0;
+  },
+
+  getRevenue: async () => {
+    const dashboard = await dashboardService.getDashboard();
+    return Number(dashboard.stats?.total_revenue || 0);
+  },
+
+  getActivity: async ({ limit = 20 } = {}) => {
+    const dashboard = await dashboardService.getDashboard();
+    const activity = Array.isArray(dashboard.activity_data) ? dashboard.activity_data : [];
+    return activity.slice(0, limit);
+  },
 };
 
 export default dashboardService;
