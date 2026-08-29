@@ -4,10 +4,15 @@ import {
   Box,
   Button,
   Card,
+  CardActions,
   CardContent,
   Chip,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   Paper,
   Stack,
@@ -38,73 +43,109 @@ const money = (value, currency = 'USD') => {
   }
 };
 
+const friendly = (value) => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
 export default function Payments() {
   const [payments, setPayments] = useState([]);
   const [methods, setMethods] = useState([]);
+  const [serverStats, setServerStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [workingId, setWorkingId] = useState(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [receipt, setReceipt] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [paymentsResult, methodsResult] = await Promise.allSettled([
-      paymentsService.getPaymentHistory({ limit: 50 }),
+    const [paymentsResult, methodsResult, statsResult] = await Promise.allSettled([
+      paymentsService.getPaymentHistory({ limit: 100 }),
       paymentsService.getPaymentMethods(),
+      paymentsService.getPaymentStats(),
     ]);
 
-    if (paymentsResult.status === 'fulfilled') {
-      setPayments(normalizeList(paymentsResult.value));
-    } else {
+    if (paymentsResult.status === 'fulfilled') setPayments(normalizeList(paymentsResult.value));
+    else {
       setPayments([]);
       setError(paymentsResult.reason?.message || 'Payment history is temporarily unavailable.');
     }
 
-    if (methodsResult.status === 'fulfilled') {
-      setMethods(normalizeList(methodsResult.value));
-    } else {
-      setMethods([]);
-    }
+    setMethods(methodsResult.status === 'fulfilled' ? normalizeList(methodsResult.value) : []);
+    setServerStats(statsResult.status === 'fulfilled' ? statsResult.value : null);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  const stats = useMemo(() => {
-    return payments.reduce(
-      (acc, payment) => {
-        const status = String(payment.status || '').toLowerCase();
+  const derivedStats = useMemo(() => payments.reduce(
+    (acc, payment) => {
+      const status = String(payment.status || '').toLowerCase();
+      if (status === 'completed') {
         acc.total += Number(payment.amount || 0);
-        if (status === 'completed' || status === 'paid' || status === 'succeeded') acc.completed += 1;
-        if (status === 'pending') acc.pending += 1;
-        return acc;
-      },
-      { total: 0, completed: 0, pending: 0 }
-    );
-  }, [payments]);
+        acc.completed += 1;
+      }
+      if (status === 'pending' || status === 'processing') acc.pending += 1;
+      return acc;
+    },
+    { total: 0, completed: 0, pending: 0 }
+  ), [payments]);
+
+  const stats = serverStats || derivedStats;
+  const provider = methods[0]?.provider || payments[0]?.provider || 'local';
+
+  const runAction = async (payment, action) => {
+    setWorkingId(payment.id);
+    setError('');
+    setSuccess('');
+    try {
+      if (action === 'process') {
+        if (provider === 'stripe' && methods.find((m) => m.id === payment.payment_method)?.requires_provider_token) {
+          throw new Error('Stripe is active. A Stripe payment-method token is required before this payment can be charged.');
+        }
+        await paymentsService.processPayment(payment.id);
+        setSuccess('Payment completed successfully.');
+      } else if (action === 'receipt') {
+        setReceipt(await paymentsService.getPaymentReceipt(payment.id));
+      } else if (action === 'refund') {
+        await paymentsService.refundPayment(payment.id);
+        setSuccess('Payment refunded successfully.');
+      }
+      if (action !== 'receipt') await load();
+    } catch (actionError) {
+      setError(actionError?.message || 'Payment operation failed.');
+    } finally {
+      setWorkingId(null);
+    }
+  };
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2} mb={3}>
         <Box>
           <Typography variant="h4" fontWeight={800}>Payments</Typography>
-          <Typography color="text.secondary">Payment history and saved payment methods.</Typography>
+          <Typography color="text.secondary">Persistent reservation billing, receipts and refunds.</Typography>
+          <Typography variant="caption" color="text.secondary">Processor: {friendly(provider)}</Typography>
         </Box>
         <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>Refresh</Button>
       </Stack>
 
-      {error && <Alert severity="warning" sx={{ mb: 3 }}>{error}</Alert>}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+      {provider === 'local' && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Local payment processing is active. Configure PAYMENT_PROVIDER=stripe and STRIPE_SECRET_KEY in Railway to use Stripe-backed charges.
+        </Alert>
+      )}
 
       <Grid container spacing={2.5} mb={3}>
         <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2.5 }}><WalletIcon color="primary" /><Typography variant="h5" fontWeight={800}>{money(stats.total)}</Typography><Typography color="text.secondary">Recorded payment value</Typography></Paper>
+          <Paper variant="outlined" sx={{ p: 2.5 }}><WalletIcon color="primary" /><Typography variant="h5" fontWeight={800}>{money(stats.total, stats.currency || 'USD')}</Typography><Typography color="text.secondary">Completed payment value</Typography></Paper>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2.5 }}><ReceiptIcon color="success" /><Typography variant="h5" fontWeight={800}>{stats.completed}</Typography><Typography color="text.secondary">Completed payments</Typography></Paper>
+          <Paper variant="outlined" sx={{ p: 2.5 }}><ReceiptIcon color="success" /><Typography variant="h5" fontWeight={800}>{stats.completed || 0}</Typography><Typography color="text.secondary">Completed payments</Typography></Paper>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2.5 }}><CreditCardIcon color="primary" /><Typography variant="h5" fontWeight={800}>{methods.length}</Typography><Typography color="text.secondary">Saved payment methods</Typography></Paper>
+          <Paper variant="outlined" sx={{ p: 2.5 }}><CreditCardIcon color="primary" /><Typography variant="h5" fontWeight={800}>{stats.pending || 0}</Typography><Typography color="text.secondary">Pending payments</Typography></Paper>
         </Grid>
       </Grid>
 
@@ -113,29 +154,59 @@ export default function Payments() {
         {loading ? (
           <Box sx={{ py: 7, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>
         ) : payments.length === 0 ? (
-          <Alert severity="info">No payment records are available yet.</Alert>
+          <Alert severity="info">No payment records are available yet. New confirmed reservations will create a pending payment automatically.</Alert>
         ) : (
           <Grid container spacing={2}>
-            {payments.map((payment, index) => (
-              <Grid item xs={12} md={6} lg={4} key={payment.id || payment.reference || index}>
-                <Card variant="outlined" sx={{ height: '100%' }}>
-                  <CardContent>
-                    <Stack spacing={1.2}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography fontWeight={700}>{payment.reference || payment.transaction_reference || `Payment ${index + 1}`}</Typography>
-                        <Chip size="small" label={payment.status || 'unknown'} />
+            {payments.map((payment, index) => {
+              const status = String(payment.status || '').toLowerCase();
+              const busy = workingId === payment.id;
+              return (
+                <Grid item xs={12} md={6} lg={4} key={payment.id || index}>
+                  <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Stack spacing={1.2}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography fontWeight={700}>{payment.receipt_number || `Payment ${String(payment.id || '').slice(0, 8)}`}</Typography>
+                          <Chip size="small" label={friendly(payment.status || 'unknown')} color={status === 'completed' ? 'success' : status === 'failed' ? 'error' : status === 'refunded' ? 'warning' : 'default'} />
+                        </Stack>
+                        <Typography variant="h6">{money(payment.amount, payment.currency || 'USD')}</Typography>
+                        <Typography variant="body2">{friendly(payment.payment_method)}</Typography>
+                        <Typography variant="body2" color="text.secondary">Reservation: {String(payment.reservation_id || '').slice(0, 12)}…</Typography>
+                        <Typography variant="body2" color="text.secondary">Provider: {friendly(payment.provider)}</Typography>
+                        <Typography variant="caption" color="text.secondary">{payment.created_at ? new Date(payment.created_at).toLocaleString() : ''}</Typography>
                       </Stack>
-                      <Typography variant="h6">{money(payment.amount, payment.currency || 'USD')}</Typography>
-                      <Typography variant="body2" color="text.secondary">{payment.payment_method || payment.method || 'Payment method not specified'}</Typography>
-                      <Typography variant="caption" color="text.secondary">{payment.created_at ? new Date(payment.created_at).toLocaleString() : ''}</Typography>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                    </CardContent>
+                    <CardActions>
+                      {(status === 'pending' || status === 'failed') && <Button size="small" disabled={busy} onClick={() => runAction(payment, 'process')}>{busy ? 'Processing…' : 'Pay now'}</Button>}
+                      {(status === 'completed' || status === 'refunded') && <Button size="small" disabled={busy} onClick={() => runAction(payment, 'receipt')}>Receipt</Button>}
+                      {status === 'completed' && <Button size="small" color="warning" disabled={busy} onClick={() => runAction(payment, 'refund')}>Refund</Button>}
+                    </CardActions>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         )}
       </Paper>
+
+      <Dialog open={Boolean(receipt)} onClose={() => setReceipt(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Payment receipt</DialogTitle>
+        <DialogContent dividers>
+          {receipt && (
+            <Stack spacing={1}>
+              <Typography><strong>Receipt:</strong> {receipt.receipt_number || '—'}</Typography>
+              <Typography><strong>Amount:</strong> {money(receipt.amount, receipt.currency)}</Typography>
+              <Typography><strong>Status:</strong> {friendly(receipt.status)}</Typography>
+              <Typography><strong>Method:</strong> {friendly(receipt.payment_method)}</Typography>
+              <Typography><strong>Provider:</strong> {friendly(receipt.provider)}</Typography>
+              <Typography><strong>Reservation:</strong> {receipt.reservation_id}</Typography>
+              {receipt.provider_reference && <Typography><strong>Provider reference:</strong> {receipt.provider_reference}</Typography>}
+              {receipt.processed_at && <Typography><strong>Processed:</strong> {new Date(receipt.processed_at).toLocaleString()}</Typography>}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions><Button onClick={() => setReceipt(null)}>Close</Button></DialogActions>
+      </Dialog>
     </Container>
   );
 }
