@@ -558,20 +558,17 @@ export const VehicleList = ({
                       <Typography variant="body2" fontWeight={600}>
                         {vehicle.make} {vehicle.model}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        #{vehicle.id}
-                      </Typography>
                     </Box>
                   </Box>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" fontWeight={500}>
-                    {vehicle.license_plate}
+                    {vehicle.license_plate || vehicle.plate_number || 'N/A'}
                   </Typography>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                    {vehicle.vehicle_type}
+                    {vehicle.vehicle_type || vehicle.type || 'Sedan'}
                   </Typography>
                   {vehicle.is_ev_charging_compatible && (
                     <Chip
@@ -597,17 +594,31 @@ export const VehicleList = ({
                 <TableCell align="right">
                   <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
                     <Tooltip title="View Details">
-                      <IconButton size="small" onClick={() => handleViewVehicle(vehicle)}>
+                      <IconButton
+                        size="small"
+                        aria-label={`View ${vehicle.make || ''} ${vehicle.model || ''}`.trim()}
+                        onClick={() => handleViewVehicle(vehicle)}
+                      >
                         <ViewIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Edit">
-                      <IconButton size="small" color="primary" onClick={() => handleEditVehicle(vehicle)}>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        aria-label={`Edit ${vehicle.make || ''} ${vehicle.model || ''}`.trim()}
+                        onClick={() => handleEditVehicle(vehicle)}
+                      >
                         <EditIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => handleDeleteVehicle(vehicle)}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        aria-label={`Delete ${vehicle.make || ''} ${vehicle.model || ''}`.trim()}
+                        onClick={() => handleDeleteVehicle(vehicle)}
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </Tooltip>
