@@ -1,3 +1,11 @@
+// The evidence build intentionally isolates UI rendering from unrelated
+// production integrations (notifications/websockets). Page-level data is
+// intercepted below; background network failures must not mask the UI proof.
+Cypress.on('uncaught:exception', (error) => {
+  if (error.message.includes('Network error')) return false;
+  return true;
+});
+
 const authenticate = () => {
   cy.intercept('GET', '**/v1/charging-stations/**', {
     statusCode: 200,
