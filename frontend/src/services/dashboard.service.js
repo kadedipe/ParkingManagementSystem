@@ -17,6 +17,26 @@ const fulfilledData = (result) =>
 const sum = (items, selector) =>
   items.reduce((total, item) => total + Number(selector(item) || 0), 0);
 
+const emptyParkingDashboard = {
+  stats: {
+    total_spots: 0,
+    available_spots: 0,
+    occupied_spots: 0,
+    reserved_spots: 0,
+    active_sessions: 0,
+    today_sessions: 0,
+    avg_duration: 0,
+    total_revenue: 0,
+    weekly_revenue: 0,
+    revenue_growth: 0,
+  },
+  occupancy_data: [],
+  revenue_data: [],
+  activity_data: [],
+  spot_status_data: [],
+  reservations_data: [],
+};
+
 export const dashboardService = {
   getDashboard: async () => {
     const [parkingMetricsResult, vehiclesResult, stationsResult, chargingSessionsResult] =
@@ -27,11 +47,18 @@ export const dashboardService = {
         api.get('/charging-sessions/'),
       ]);
 
+    const parking =
+      parkingMetricsResult.status === 'fulfilled'
+        ? parkingMetricsResult.value?.data || emptyParkingDashboard
+        : emptyParkingDashboard;
+
     if (parkingMetricsResult.status !== 'fulfilled') {
-      throw parkingMetricsResult.reason || new Error('Parking dashboard metrics are unavailable');
+      console.error(
+        'Parking dashboard metrics are unavailable; rendering fallback dashboard.',
+        parkingMetricsResult.reason
+      );
     }
 
-    const parking = parkingMetricsResult.value?.data || {};
     const vehicles = fulfilledData(vehiclesResult);
     const stations = fulfilledData(stationsResult);
     const chargingSessions = fulfilledData(chargingSessionsResult);
@@ -41,6 +68,7 @@ export const dashboardService = {
 
     return {
       stats: {
+        ...emptyParkingDashboard.stats,
         ...(parking.stats || {}),
         total_vehicles: vehicles.length,
         charging_stations: stations.length,
