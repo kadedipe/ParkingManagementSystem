@@ -7,7 +7,8 @@ def test_register(client):
             "username": "testuser",
             "email": "test@example.com",
             "password": "password123",
-            "full_name": "Test User"
+            "full_name": "Test User",
+            "phone_number": "+256 700 000 001"
         }
     )
     assert response.status_code == 200

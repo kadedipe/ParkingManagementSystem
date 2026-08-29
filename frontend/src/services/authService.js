@@ -88,15 +88,24 @@ class AuthService {
   async login(email, password, rememberMe = false) {
     try {
       const response = await apiService.post('/auth/login', {
-        email,
+        // The Parking auth API uses the email address as the username.
+        username: email.trim().toLowerCase(),
         password,
-        rememberMe,
       });
 
-      const { access_token, refresh_token, user } = response.data;
+      const { access_token, refresh_token } = response.data;
       
       // Store tokens
       this.setTokens(access_token, refresh_token);
+
+      // The Parking auth API returns a token envelope. Resolve the user from
+      // the authenticated profile endpoint before updating application state.
+      const profileResponse = await apiService.get('/auth/me', {
+        retry: false,
+        queueWhenOffline: false,
+        skipAuthRefresh: true,
+      });
+      const user = profileResponse.data?.user ?? profileResponse.data;
       
       // Store user
       this.setUser(user);
@@ -133,21 +142,19 @@ class AuthService {
    */
   async register(userData) {
     try {
-      const response = await apiService.post('/auth/register', userData);
+      const email = userData.email.trim().toLowerCase();
+      const response = await apiService.post('/auth/register', {
+        username: email,
+        email,
+        password: userData.password,
+        full_name: `${userData.firstName} ${userData.lastName}`.trim(),
+        phone_number: userData.phone,
+      });
       
-      const { user, access_token, refresh_token } = response.data;
-      
-      // Store tokens if auto-login is enabled
-      if (access_token) {
-        this.setTokens(access_token, refresh_token);
-        this.setUser(user);
-        this.setupAutoRefresh();
-        this.notifyListeners();
-      }
+      const { access_token } = response.data;
       
       return {
         success: true,
-        user,
         token: access_token,
       };
     } catch (error) {
