@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from src.domain.models.reservation import Reservation, ReservationStatus
-from src.domain.models.parking_spot import ParkingSpotStatus
+from src.domain.models.parking_spot import ParkingSpot, ParkingSpotStatus
 from src.repositories.reservation_repository import ReservationRepository
 from src.repositories.parking_spot_repository import ParkingSpotRepository
 from src.repositories.parking_lot_repository import ParkingLotRepository
@@ -111,11 +111,7 @@ class ReservationService:
             return
 
         result = await self.repository.session.execute(
-            select(self.spot_repository.model if hasattr(self.spot_repository, "model") else __import__(
-                "src.domain.models.parking_spot", fromlist=["ParkingSpot"]
-            ).ParkingSpot).where(
-                (__import__("src.domain.models.parking_spot", fromlist=["ParkingSpot"]).ParkingSpot.parking_lot_id == parking_lot_id)
-            )
+            select(ParkingSpot).where(ParkingSpot.parking_lot_id == parking_lot_id)
         )
         spots = result.scalars().all()
 
