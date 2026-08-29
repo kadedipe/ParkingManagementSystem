@@ -57,6 +57,11 @@ import {
   Tab,
   Tabs,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -105,6 +110,7 @@ import { formatCurrency, formatDate, formatTime } from '../utils/formatters';
 import { useDashboard } from '../hooks/useDashboard';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../services/api';
 
 // ============================================================================
 // Styled Components
@@ -203,6 +209,25 @@ export const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [showOccupancy, setShowOccupancy] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [quickCreate, setQuickCreate] = useState(null);
+  const [quickCreateLoading, setQuickCreateLoading] = useState(false);
+  const [quickCreateError, setQuickCreateError] = useState('');
+  const [parkingForm, setParkingForm] = useState({
+    name: '',
+    street: '',
+    city: '',
+    totalSpots: 1,
+    pricePerHour: 1,
+  });
+  const [chargingForm, setChargingForm] = useState({
+    name: '',
+    street: '',
+    city: '',
+    connectorType: 'CCS',
+    connectorCount: 1,
+    maxPowerKw: 22,
+    pricePerKwh: 0.5,
+  });
   const [expandedSections, setExpandedSections] = useState({
     occupancy: true,
     revenue: true,
@@ -255,6 +280,88 @@ export const Dashboard = () => {
       ...prev,
       [section]: !prev[section],
     }));
+  };
+
+  const closeQuickCreate = () => {
+    if (quickCreateLoading) return;
+    setQuickCreate(null);
+    setQuickCreateError('');
+  };
+
+  const handleCreateParking = async (event) => {
+    event.preventDefault();
+    setQuickCreateLoading(true);
+    setQuickCreateError('');
+
+    try {
+      const totalSpots = Math.max(1, Math.min(100, Number(parkingForm.totalSpots)));
+      const lotResponse = await apiService.post('/parking-lots/', {
+        name: parkingForm.name.trim(),
+        address: {
+          street: parkingForm.street.trim(),
+          city: parkingForm.city.trim(),
+        },
+        total_spots: totalSpots,
+        price_per_hour: Number(parkingForm.pricePerHour),
+        type: 'standard',
+      });
+      const lotId = lotResponse?.data?.id;
+      if (!lotId) throw new Error('Parking lot was created without an identifier.');
+
+      await Promise.all(
+        Array.from({ length: totalSpots }, (_, index) =>
+          apiService.post('/parking-spots/', {
+            parking_lot_id: lotId,
+            number: `P-${String(index + 1).padStart(3, '0')}`,
+            level: 1,
+            type: 'standard',
+          })
+        )
+      );
+
+      setQuickCreate(null);
+      await fetchDashboard();
+      navigate('/parking');
+    } catch (requestError) {
+      setQuickCreateError(
+        requestError?.response?.data?.detail || requestError?.message || 'Unable to register parking.'
+      );
+    } finally {
+      setQuickCreateLoading(false);
+    }
+  };
+
+  const handleCreateCharging = async (event) => {
+    event.preventDefault();
+    setQuickCreateLoading(true);
+    setQuickCreateError('');
+
+    try {
+      const connectorCount = Math.max(1, Math.min(20, Number(chargingForm.connectorCount)));
+      await apiService.post('/charging-stations/', {
+        name: chargingForm.name.trim(),
+        address: {
+          street: chargingForm.street.trim(),
+          city: chargingForm.city.trim(),
+        },
+        connectors: Array.from({ length: connectorCount }, () => ({
+          type: chargingForm.connectorType,
+          max_power_kw: Number(chargingForm.maxPowerKw),
+        })),
+        power_level: Number(chargingForm.maxPowerKw) >= 50 ? 'fast' : 'standard',
+        price_per_kwh: Number(chargingForm.pricePerKwh),
+      });
+
+      setQuickCreate(null);
+      await fetchDashboard();
+      navigate('/charging');
+    } catch (requestError) {
+      setQuickCreateError(
+        requestError?.response?.data?.detail || requestError?.message || 'Unable to register charging.'
+      );
+    } finally {
+      setQuickCreateLoading(false);
+    }
   };
 
   // ==========================================================================
@@ -832,10 +939,10 @@ export const Dashboard = () => {
           Quick Actions
         </Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="contained" startIcon={<ParkingIcon />} onClick={() => navigate('/parking')}>
+          <Button variant="contained" startIcon={<ParkingIcon />} onClick={() => setQuickCreate('parking')}>
             Add Parking
           </Button>
-          <Button variant="outlined" startIcon={<EvStationIcon />} onClick={() => navigate('/charging')}>
+          <Button variant="outlined" startIcon={<EvStationIcon />} onClick={() => setQuickCreate('charging')}>
             Add Charging
           </Button>
           <Button variant="outlined" startIcon={<AssessmentIcon />} onClick={() => navigate('/reports')}>
@@ -846,6 +953,66 @@ export const Dashboard = () => {
           </Button>
         </Stack>
       </Paper>
+
+      <Dialog open={quickCreate === 'parking'} onClose={closeQuickCreate} fullWidth maxWidth="sm">
+        <Box component="form" onSubmit={handleCreateParking}>
+          <DialogTitle>Register parking</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {quickCreateError && <Alert severity="error">{String(quickCreateError)}</Alert>}
+              <TextField required name="parkingName" label="Parking name" value={parkingForm.name} onChange={(event) => setParkingForm((form) => ({ ...form, name: event.target.value }))} />
+              <TextField required name="parkingStreet" label="Street address" value={parkingForm.street} onChange={(event) => setParkingForm((form) => ({ ...form, street: event.target.value }))} />
+              <TextField required name="parkingCity" label="City" value={parkingForm.city} onChange={(event) => setParkingForm((form) => ({ ...form, city: event.target.value }))} />
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth required name="totalSpots" type="number" label="Number of spots" inputProps={{ min: 1, max: 100 }} value={parkingForm.totalSpots} onChange={(event) => setParkingForm((form) => ({ ...form, totalSpots: event.target.value }))} />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth required name="pricePerHour" type="number" label="Price per hour" inputProps={{ min: 0, step: 0.01 }} value={parkingForm.pricePerHour} onChange={(event) => setParkingForm((form) => ({ ...form, pricePerHour: event.target.value }))} />
+                </Grid>
+              </Grid>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeQuickCreate} disabled={quickCreateLoading}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={quickCreateLoading} startIcon={quickCreateLoading ? <CircularProgress size={18} /> : <ParkingIcon />}>Register parking</Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      <Dialog open={quickCreate === 'charging'} onClose={closeQuickCreate} fullWidth maxWidth="sm">
+        <Box component="form" onSubmit={handleCreateCharging}>
+          <DialogTitle>Register charging station</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {quickCreateError && <Alert severity="error">{String(quickCreateError)}</Alert>}
+              <TextField required name="chargingName" label="Station name" value={chargingForm.name} onChange={(event) => setChargingForm((form) => ({ ...form, name: event.target.value }))} />
+              <TextField required name="chargingStreet" label="Street address" value={chargingForm.street} onChange={(event) => setChargingForm((form) => ({ ...form, street: event.target.value }))} />
+              <TextField required name="chargingCity" label="City" value={chargingForm.city} onChange={(event) => setChargingForm((form) => ({ ...form, city: event.target.value }))} />
+              <TextField required select name="connectorType" label="Connector type" value={chargingForm.connectorType} onChange={(event) => setChargingForm((form) => ({ ...form, connectorType: event.target.value }))}>
+                <MenuItem value="CCS">CCS</MenuItem>
+                <MenuItem value="CHAdeMO">CHAdeMO</MenuItem>
+                <MenuItem value="Type 2">Type 2</MenuItem>
+              </TextField>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth required name="connectorCount" type="number" label="Connectors" inputProps={{ min: 1, max: 20 }} value={chargingForm.connectorCount} onChange={(event) => setChargingForm((form) => ({ ...form, connectorCount: event.target.value }))} />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth required name="maxPowerKw" type="number" label="Power (kW)" inputProps={{ min: 1, step: 0.1 }} value={chargingForm.maxPowerKw} onChange={(event) => setChargingForm((form) => ({ ...form, maxPowerKw: event.target.value }))} />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField fullWidth required name="pricePerKwh" type="number" label="Price/kWh" inputProps={{ min: 0, step: 0.01 }} value={chargingForm.pricePerKwh} onChange={(event) => setChargingForm((form) => ({ ...form, pricePerKwh: event.target.value }))} />
+                </Grid>
+              </Grid>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeQuickCreate} disabled={quickCreateLoading}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={quickCreateLoading} startIcon={quickCreateLoading ? <CircularProgress size={18} /> : <EvStationIcon />}>Register station</Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
     </Box>
   );
 };
