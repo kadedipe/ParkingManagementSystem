@@ -12,6 +12,24 @@ export const useBookings = () => {
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState(null);
 
+  const createBooking = useCallback(async (data) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await bookingsService.createBooking(data);
+      if (response?.data) {
+        setBookings((current) => [response.data, ...current]);
+        setTotal((current) => current + 1);
+      }
+      return response;
+    } catch (err) {
+      setError(err.message || 'Failed to create booking');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const fetchBookings = useCallback(async (params = {}) => {
     try {
       setLoading(true);
@@ -33,8 +51,7 @@ export const useBookings = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await bookingsService.getBooking(id);
-      return response;
+      return await bookingsService.getBooking(id);
     } catch (err) {
       setError(err.message || 'Failed to get booking');
       throw err;
@@ -48,6 +65,9 @@ export const useBookings = () => {
       setLoading(true);
       setError(null);
       const response = await bookingsService.cancelBooking(id, reason);
+      setBookings((current) => current.map((booking) => (
+        booking.id === id ? response : booking
+      )));
       return response;
     } catch (err) {
       setError(err.message || 'Failed to cancel booking');
@@ -61,8 +81,7 @@ export const useBookings = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await bookingsService.rebookBooking(id);
-      return response;
+      return await bookingsService.rebookBooking(id);
     } catch (err) {
       setError(err.message || 'Failed to rebook');
       throw err;
@@ -75,8 +94,7 @@ export const useBookings = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await bookingsService.exportBookings(format);
-      return response;
+      return await bookingsService.exportBookings(format);
     } catch (err) {
       setError(err.message || 'Failed to export bookings');
       throw err;
@@ -91,6 +109,7 @@ export const useBookings = () => {
     error,
     total,
     stats,
+    createBooking,
     fetchBookings,
     getBooking,
     cancelBooking,
@@ -99,7 +118,6 @@ export const useBookings = () => {
   };
 };
 
-// Backward-compatible singular alias used by existing booking components.
 export const useBooking = useBookings;
 
 export default useBookings;
