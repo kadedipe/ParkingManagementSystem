@@ -8,7 +8,7 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -225,6 +225,11 @@ async def _stripe_process(payment: Payment, token: Optional[str]) -> tuple[str, 
     if response.status_code >= 400:
         message = payload.get("error", {}).get("message") or "Stripe payment failed"
         raise HTTPException(status_code=402, detail=message)
+    if payload.get("status") != "succeeded":
+        raise HTTPException(
+            status_code=402,
+            detail=f"Stripe payment requires additional action ({payload.get('status', 'unknown')})",
+        )
     return str(payload.get("id") or ""), payload
 
 
@@ -244,33 +249,40 @@ async def process_payment(
 
     provider = _provider()
     payment.status = PaymentStatus.PROCESSING
-    metadata = _metadata(payment)
-    metadata["provider"] = provider
-    payment.additional_data = metadata
+    processing_metadata = {**_metadata(payment), "provider": provider}
+    payment.additional_data = processing_metadata
     await db.commit()
 
     try:
         provider_reference = None
         provider_payload: dict[str, Any] = {}
         if provider == "stripe":
-            provider_reference, provider_payload = await _stripe_process(payment, body.provider_payment_method_id)
+            provider_reference, provider_payload = await _stripe_process(
+                payment, body.provider_payment_method_id
+            )
         elif provider != "local":
             raise HTTPException(status_code=503, detail=f"Unsupported payment provider: {provider}")
 
         now = datetime.utcnow()
-        receipt_number = metadata.get("receipt_number") or f"PKG-{now:%Y%m%d}-{str(payment.id)[:8].upper()}"
-        metadata.update(
-            {
-                "provider": provider,
-                "provider_reference": provider_reference,
-                "receipt_number": receipt_number,
-                "processed_at": now.isoformat(),
-            }
+        receipt_number = processing_metadata.get("receipt_number") or (
+            f"PKG-{now:%Y%m%d}-{str(payment.id)[:8].upper()}"
         )
+        completed_metadata = {
+            **processing_metadata,
+            "provider": provider,
+            "provider_reference": provider_reference,
+            "receipt_number": receipt_number,
+            "processed_at": now.isoformat(),
+        }
         if provider_payload:
-            metadata["provider_status"] = provider_payload.get("status")
-        payment.stripe_payment_intent_id = provider_reference or payment.stripe_payment_intent_id
-        payment.additional_data = metadata
+            completed_metadata["provider_status"] = provider_payload.get("status")
+
+        payment.stripe_payment_intent_id = (
+            provider_reference or payment.stripe_payment_intent_id
+        )
+        # Assign a new dict object after the intermediate commit. Reusing and
+        # mutating the old JSON object can be treated as unchanged by SQLAlchemy.
+        payment.additional_data = completed_metadata
         payment.status = PaymentStatus.COMPLETED
         await db.commit()
         await db.refresh(payment)
@@ -340,9 +352,11 @@ async def refund_payment(
                 message = None
             raise HTTPException(status_code=402, detail=message or "Stripe refund failed")
 
-    metadata = _metadata(payment)
-    metadata["refunded_at"] = datetime.utcnow().isoformat()
-    payment.additional_data = metadata
+    refunded_metadata = {
+        **_metadata(payment),
+        "refunded_at": datetime.utcnow().isoformat(),
+    }
+    payment.additional_data = refunded_metadata
     payment.status = PaymentStatus.REFUNDED
     await db.commit()
     await db.refresh(payment)
