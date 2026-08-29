@@ -6,8 +6,42 @@ import api from './api';
 
 export const vehiclesService = {
   getVehicles: async (params) => {
-    const response = await api.get('/vehicles', { params });
-    return response.data;
+    const page = Math.max(1, Number(params?.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(params?.pageSize || params?.limit || 10)));
+    const response = await api.get('/vehicles', {
+      params: {
+        skip: (page - 1) * limit,
+        limit,
+      },
+    });
+    const vehicles = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray(response.data?.items)
+        ? response.data.items
+        : [];
+    const search = String(params?.search || '').trim().toLowerCase();
+    const status = params?.status;
+    const type = params?.type;
+    const filtered = vehicles.filter((vehicle) => {
+      const matchesSearch = !search || [
+        vehicle.name,
+        vehicle.plate_number,
+        vehicle.make,
+        vehicle.model,
+      ].some((value) => String(value || '').toLowerCase().includes(search));
+      const matchesStatus = !status || vehicle.status === status;
+      const matchesType = !type || (type === 'ev' ? vehicle.is_ev : !vehicle.is_ev);
+      return matchesSearch && matchesStatus && matchesType;
+    });
+    return {
+      items: filtered,
+      total: filtered.length,
+      stats: {
+        total: filtered.length,
+        active: filtered.filter((vehicle) => vehicle.status === 'active').length,
+        electric: filtered.filter((vehicle) => vehicle.is_ev).length,
+      },
+    };
   },
 
   getVehicle: async (id) => {
