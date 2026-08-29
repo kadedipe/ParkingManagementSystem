@@ -7,6 +7,7 @@ export const paymentsService = {
   getPaymentHistory: async (params = {}) => unwrap(await api.get('/payments/history', { params })),
   getPaymentMethods: async () => unwrap(await api.get('/payments/methods')),
   getPaymentStats: async () => unwrap(await api.get('/payments/stats')),
+  getBillingAdjustments: async (params = {}) => unwrap(await api.get('/payments/adjustments', { params })),
 
   // Payment mutations are non-idempotent. Use the Axios instance directly so
   // the generic API retry wrapper cannot replay a charge/refund on a 5xx.
