@@ -11,10 +11,12 @@ body,
 #root {
   min-width: 320px;
   min-height: 100%;
+  max-width: 100%;
 }
 
 body {
   margin: 0;
+  overflow-x: hidden;
 }
 
 a {
@@ -27,4 +29,24 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/* MUI Grid items and Recharts containers must be allowed to shrink on mobile. */
+.MuiGrid-item {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.recharts-responsive-container {
+  width: 100% !important;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Keep dense dashboard tables inside their cards instead of widening the page. */
+.MuiTableContainer-root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
