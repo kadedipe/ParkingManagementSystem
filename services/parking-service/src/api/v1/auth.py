@@ -42,6 +42,7 @@ async def register(
         username=user_data.username,
         email=user_data.email,
         full_name=user_data.full_name,
+        phone_number=user_data.phone_number,
         hashed_password=AuthService.get_password_hash(user_data.password),
         is_active=True,
         is_admin=False

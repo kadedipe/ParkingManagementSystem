@@ -281,9 +281,21 @@ api.interceptors.response.use(
       });
     }
     
+    // FastAPI returns validation failures as a detail array. Convert it into a
+    // concise message that can be rendered safely by the form.
+    const detail = error.response?.data?.detail;
+    const detailMessage = Array.isArray(detail)
+      ? detail
+          .map((item) => {
+            const field = item?.loc?.at(-1);
+            return `${field ? `${field}: ` : ''}${item?.msg || 'Invalid value'}`;
+          })
+          .join('; ')
+      : detail;
+
     // Handle other errors
     return Promise.reject({
-      message: error.response?.data?.message || error.response?.data?.detail || 'An error occurred',
+      message: error.response?.data?.message || detailMessage || 'An error occurred',
       status: error.response?.status,
       data: error.response?.data,
       code: error.response?.data?.code,
@@ -305,7 +317,8 @@ const retryRequest = async (requestFn, retries = MAX_RETRIES, delay = RETRY_DELA
       lastError = error;
       
       // Don't retry if it's a client error (4xx) except 429
-      if (error.response && error.response.status >= 400 && error.response.status < 500 && error.response.status !== 429) {
+      const status = error.response?.status ?? error.status;
+      if (status >= 400 && status < 500 && status !== 429) {
         throw error;
       }
       

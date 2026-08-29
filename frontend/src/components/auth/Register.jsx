@@ -371,6 +371,7 @@ export const Register = () => {
               {...field}
               fullWidth
               label="First Name"
+              autoComplete="given-name"
               placeholder="Enter your first name"
               error={!!errors.firstName}
               helperText={errors.firstName?.message}
@@ -394,6 +395,7 @@ export const Register = () => {
               {...field}
               fullWidth
               label="Last Name"
+              autoComplete="family-name"
               placeholder="Enter your last name"
               error={!!errors.lastName}
               helperText={errors.lastName?.message}
@@ -417,6 +419,8 @@ export const Register = () => {
               {...field}
               fullWidth
               label="Email Address"
+              type="email"
+              autoComplete="email"
               placeholder="Enter your email"
               error={!!errors.email}
               helperText={errors.email?.message}
@@ -440,6 +444,8 @@ export const Register = () => {
               {...field}
               fullWidth
               label="Phone Number"
+              type="tel"
+              autoComplete="tel"
               placeholder="+1 234 567 8900"
               error={!!errors.phone}
               helperText={errors.phone?.message}
@@ -474,6 +480,7 @@ export const Register = () => {
               fullWidth
               label="Password"
               type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               placeholder="Create a strong password"
               error={!!errors.password}
               helperText={errors.password?.message}
@@ -543,6 +550,7 @@ export const Register = () => {
               fullWidth
               label="Confirm Password"
               type={showConfirmPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               placeholder="Confirm your password"
               error={!!errors.confirmPassword}
               helperText={errors.confirmPassword?.message}
