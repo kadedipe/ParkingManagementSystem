@@ -262,7 +262,7 @@ export const BookingForm = ({ spot, onSuccess, onCancel, onError }) => {
           <MenuItem value="google_pay">Google Pay</MenuItem>
         </Select>
       </FormControl>
-      <Alert severity="info">Payment preference is recorded for the reservation; online payment processing is not active yet.</Alert>
+      <Alert severity="info">Your payment preference will be attached to the reservation. The built-in local processor completes the payment immediately; external providers can complete it from the Payments page.</Alert>
       <FormControlLabel
         control={<Checkbox checked={formData.termsAccepted} onChange={(e) => updateField('termsAccepted', e.target.checked)} />}
         label="I accept the terms and conditions"
@@ -287,7 +287,7 @@ export const BookingForm = ({ spot, onSuccess, onCancel, onError }) => {
       </Stepper>
 
       {errors.submit && <Alert severity="error" sx={{ mb: 2 }}>{errors.submit}</Alert>}
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {!errors.submit && error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Box sx={{ minHeight: 220 }}>
         {activeStep === 0 && renderDateTime()}
