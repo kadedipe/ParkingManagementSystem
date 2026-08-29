@@ -44,11 +44,17 @@ export const parkingService = {
           lot.base_price_per_hour ??
           0
         );
+        const spotNumber = spot.spot_number || spot.number || spot.name || 'Parking spot';
+        const spotType = spot.spot_type || spot.type || 'standard';
         return {
           ...spot,
           parking_lot: lot,
           parking_lot_name: lot.name,
-          name: spot.number ? `${lot.name} · ${spot.number}` : lot.name,
+          spot_number: spotNumber,
+          number: spot.number || spotNumber,
+          spot_type: spotType,
+          type: spot.type || spotType,
+          name: lot.name ? `${lot.name} · ${spotNumber}` : spotNumber,
           address: lot.address,
           location: lot.location,
           latitude: lot.location?.latitude ?? lot.location?.lat,
@@ -62,7 +68,7 @@ export const parkingService = {
         };
       });
     }).filter((spot) => {
-      const matchesQuery = !query || [spot.name, spot.number, spot.parking_lot_name]
+      const matchesQuery = !query || [spot.name, spot.number, spot.spot_number, spot.parking_lot_name]
         .some((value) => String(value || '').toLowerCase().includes(query));
       const status = String(spot.status || '').toLowerCase();
       const matchesStatus = requestedStatuses.length === 0 || requestedStatuses.includes(status);
@@ -78,7 +84,6 @@ export const parkingService = {
     };
   },
 
-  // Spots
   getSpots: async (params) => {
     const response = await apiService.get('/parking-spots/', { params });
     return response.data;
@@ -104,7 +109,6 @@ export const parkingService = {
     return response.data;
   },
 
-  // Sessions
   startSession: async (data) => {
     const response = await apiService.post('/parking-sessions/start', data);
     return response.data;
@@ -125,7 +129,6 @@ export const parkingService = {
     return response.data;
   },
 
-  // Reservations
   createReservation: async (data) => {
     const response = await apiService.post('/reservations', data);
     return response.data;
