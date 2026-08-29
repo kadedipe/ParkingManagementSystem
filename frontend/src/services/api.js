@@ -227,10 +227,13 @@ api.interceptors.response.use(
     }
     
     // Handle 401 Unauthorized - Token expired
+    const canRefreshSession = Boolean(getAccessToken() && getRefreshToken());
+
     if (
       error.response.status === 401 &&
       !originalRequest._retry &&
-      originalRequest?.skipAuthRefresh !== true
+      originalRequest?.skipAuthRefresh !== true &&
+      canRefreshSession
     ) {
       originalRequest._retry = true;
       
@@ -256,8 +259,11 @@ api.interceptors.response.use(
       } catch (refreshError) {
         isRefreshing = false;
         clearTokens();
-        // Redirect to login
-        window.location.href = '/login';
+        // Perform at most one clean transition after a real authenticated
+        // session expires. Public 401 responses cannot reach this branch.
+        if (window.location.pathname !== '/login') {
+          window.location.replace('/login');
+        }
         return Promise.reject({
           message: 'Session expired. Please login again.',
           code: 'SESSION_EXPIRED',

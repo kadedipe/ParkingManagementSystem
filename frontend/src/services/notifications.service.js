@@ -7,7 +7,12 @@ import api from './api';
 export const notificationsService = {
   // Notification CRUD
   getNotifications: async (params) => {
-    const response = await api.get('/notifications', { params });
+    const response = await api.get('/notifications', {
+      params,
+      retry: false,
+      queueWhenOffline: false,
+      skipAuthRefresh: true,
+    });
     return response.data;
   },
 
@@ -37,13 +42,21 @@ export const notificationsService = {
   },
 
   getUnreadCount: async () => {
-    const response = await api.get('/notifications/unread-count');
+    const response = await api.get('/notifications/unread-count', {
+      retry: false,
+      queueWhenOffline: false,
+      skipAuthRefresh: true,
+    });
     return response.data;
   },
 
   // Preferences
   getPreferences: async () => {
-    const response = await api.get('/notifications/preferences');
+    const response = await api.get('/notifications/preferences', {
+      retry: false,
+      queueWhenOffline: false,
+      skipAuthRefresh: true,
+    });
     return response.data;
   },
 

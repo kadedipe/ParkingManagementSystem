@@ -19,6 +19,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useReducer } from 'react';
 import { notificationsService } from '../services/notifications.service';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useAuth } from '../hooks/useAuth';
 import { config } from '../config';
 
 // ============================================================================
@@ -287,6 +288,7 @@ const NotificationContext = createContext(null);
 
 export const NotificationProvider = ({ children, autoConnect = true }) => {
   const [state, dispatch] = useReducer(notificationReducer, initialState);
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   // ==========================================================================
   // WebSocket Integration
@@ -294,7 +296,7 @@ export const NotificationProvider = ({ children, autoConnect = true }) => {
 
   const ws = useWebSocket({
     url: config.websocket.url,
-    autoConnect,
+    autoConnect: autoConnect && isAuthenticated,
     onMessage: (data) => {
       // Handle real-time notification updates
       if (data.type === 'notification') {
@@ -522,8 +524,16 @@ export const NotificationProvider = ({ children, autoConnect = true }) => {
   // ==========================================================================
 
   useEffect(() => {
-    fetchNotifications();
-    fetchPreferences();
+    if (authLoading || !isAuthenticated) {
+      return undefined;
+    }
+
+    // Notification data is optional background state. A failure must never
+    // block authentication or turn the public login route into a reload loop.
+    void Promise.allSettled([
+      fetchNotifications(),
+      fetchPreferences(),
+    ]);
     
     // Set up polling for unread count
     const interval = setInterval(async () => {
@@ -536,7 +546,7 @@ export const NotificationProvider = ({ children, autoConnect = true }) => {
     }, 30000); // Every 30 seconds
     
     return () => clearInterval(interval);
-  }, []);
+  }, [authLoading, isAuthenticated, fetchNotifications, fetchPreferences]);
 
   // ==========================================================================
   // Context Value
