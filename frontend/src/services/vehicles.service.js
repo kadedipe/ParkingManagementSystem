@@ -20,6 +20,16 @@ const toVehiclePayload = (data = {}) => ({
   is_default: Boolean(data.is_default),
 });
 
+const normalizeVehicle = (vehicle = {}) => ({
+  ...vehicle,
+  license_plate: vehicle.license_plate || vehicle.plate_number || '',
+  vehicle_type: vehicle.vehicle_type || (vehicle.is_ev ? 'ev' : 'sedan'),
+  fuel_type: vehicle.fuel_type || (vehicle.is_ev ? 'electric' : 'gasoline'),
+  is_ev_charging_compatible: Boolean(
+    vehicle.is_ev_charging_compatible ?? vehicle.is_ev
+  ),
+});
+
 export const vehiclesService = {
   getVehicles: async (params) => {
     const page = Math.max(1, Number(params?.page || 1));
@@ -30,11 +40,11 @@ export const vehiclesService = {
         limit,
       },
     });
-    const vehicles = Array.isArray(response.data)
+    const vehicles = (Array.isArray(response.data)
       ? response.data
       : Array.isArray(response.data?.items)
         ? response.data.items
-        : [];
+        : []).map(normalizeVehicle);
     const search = String(params?.search || '').trim().toLowerCase();
     const status = params?.status;
     const type = params?.type;
@@ -62,17 +72,17 @@ export const vehiclesService = {
 
   getVehicle: async (id) => {
     const response = await api.get(`/vehicles/${id}`);
-    return response.data;
+    return normalizeVehicle(response.data);
   },
 
   createVehicle: async (data) => {
     const response = await api.post('/vehicles', toVehiclePayload(data));
-    return response.data;
+    return normalizeVehicle(response.data);
   },
 
   updateVehicle: async (id, data) => {
     const response = await api.put(`/vehicles/${id}`, toVehiclePayload(data));
-    return response.data;
+    return normalizeVehicle(response.data);
   },
 
   deleteVehicle: async (id) => {
