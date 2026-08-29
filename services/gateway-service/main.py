@@ -12,6 +12,7 @@ SERVICE_MAP = {
     "auth": "parking",
     "parking-lots": "parking",
     "parking-spots": "parking",
+    "parking-sessions": "parking",
     "reservations": "parking",
     "vehicles": "vehicle",
     "notifications": "notification",
@@ -49,7 +50,7 @@ async def lifespan(app: FastAPI):
     await client.aclose()
 
 
-app = FastAPI(title="Parking API Gateway", version="2.1.0", lifespan=lifespan)
+app = FastAPI(title="Parking API Gateway", version="2.1.1", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS,
