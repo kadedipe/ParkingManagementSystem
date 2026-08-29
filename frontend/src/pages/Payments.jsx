@@ -47,6 +47,7 @@ const friendly = (value) => String(value || '').replaceAll('_', ' ').replace(/\b
 
 export default function Payments() {
   const [payments, setPayments] = useState([]);
+  const [adjustments, setAdjustments] = useState([]);
   const [methods, setMethods] = useState([]);
   const [serverStats, setServerStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,10 +59,11 @@ export default function Payments() {
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [paymentsResult, methodsResult, statsResult] = await Promise.allSettled([
+    const [paymentsResult, methodsResult, statsResult, adjustmentsResult] = await Promise.allSettled([
       paymentsService.getPaymentHistory({ limit: 100 }),
       paymentsService.getPaymentMethods(),
       paymentsService.getPaymentStats(),
+      paymentsService.getBillingAdjustments({ limit: 100 }),
     ]);
 
     if (paymentsResult.status === 'fulfilled') setPayments(normalizeList(paymentsResult.value));
@@ -72,6 +74,7 @@ export default function Payments() {
 
     setMethods(methodsResult.status === 'fulfilled' ? normalizeList(methodsResult.value) : []);
     setServerStats(statsResult.status === 'fulfilled' ? statsResult.value : null);
+    setAdjustments(adjustmentsResult.status === 'fulfilled' ? normalizeList(adjustmentsResult.value) : []);
     setLoading(false);
   }, []);
 
@@ -123,7 +126,7 @@ export default function Payments() {
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2} mb={3}>
         <Box>
           <Typography variant="h4" fontWeight={800}>Payments</Typography>
-          <Typography color="text.secondary">Persistent reservation billing, receipts and refunds.</Typography>
+          <Typography color="text.secondary">Persistent reservation billing, receipts, refunds and automatic session reconciliation.</Typography>
           <Typography variant="caption" color="text.secondary">Processor: {friendly(provider)}</Typography>
         </Box>
         <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>Refresh</Button>
@@ -133,21 +136,49 @@ export default function Payments() {
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
       {provider === 'local' && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          Local payment processing is active. Configure PAYMENT_PROVIDER=stripe and STRIPE_SECRET_KEY in Railway to use Stripe-backed charges.
+          Local processing automatically settles parking-session overages and credits when a session ends.
         </Alert>
       )}
 
       <Grid container spacing={2.5} mb={3}>
-        <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2.5 }}><WalletIcon color="primary" /><Typography variant="h5" fontWeight={800}>{money(stats.total, stats.currency || 'USD')}</Typography><Typography color="text.secondary">Completed payment value</Typography></Paper>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2.5 }}><ReceiptIcon color="success" /><Typography variant="h5" fontWeight={800}>{stats.completed || 0}</Typography><Typography color="text.secondary">Completed payments</Typography></Paper>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2.5 }}><CreditCardIcon color="primary" /><Typography variant="h5" fontWeight={800}>{stats.pending || 0}</Typography><Typography color="text.secondary">Pending payments</Typography></Paper>
-        </Grid>
+        <Grid item xs={12} md={4}><Paper variant="outlined" sx={{ p: 2.5 }}><WalletIcon color="primary" /><Typography variant="h5" fontWeight={800}>{money(stats.total, stats.currency || 'USD')}</Typography><Typography color="text.secondary">Completed payment value</Typography></Paper></Grid>
+        <Grid item xs={12} md={4}><Paper variant="outlined" sx={{ p: 2.5 }}><ReceiptIcon color="success" /><Typography variant="h5" fontWeight={800}>{stats.completed || 0}</Typography><Typography color="text.secondary">Completed payments</Typography></Paper></Grid>
+        <Grid item xs={12} md={4}><Paper variant="outlined" sx={{ p: 2.5 }}><CreditCardIcon color="primary" /><Typography variant="h5" fontWeight={800}>{stats.pending || 0}</Typography><Typography color="text.secondary">Pending payments</Typography></Paper></Grid>
       </Grid>
+
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+        <Typography variant="h6" fontWeight={700} mb={2}>Billing reconciliation</Typography>
+        {loading ? (
+          <Box sx={{ py: 4, display: 'grid', placeItems: 'center' }}><CircularProgress size={28} /></Box>
+        ) : adjustments.length === 0 ? (
+          <Alert severity="info">No session adjustments yet. Reconciliation runs automatically when parking ends.</Alert>
+        ) : (
+          <Grid container spacing={2}>
+            {adjustments.map((adjustment) => {
+              const delta = Number(adjustment.adjustment_amount || 0);
+              const settled = String(adjustment.status).toLowerCase() === 'settled';
+              return (
+                <Grid item xs={12} md={6} lg={4} key={adjustment.id}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Stack spacing={1}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography fontWeight={700}>{friendly(adjustment.type)}</Typography>
+                          <Chip size="small" label={friendly(adjustment.status)} color={settled ? 'success' : adjustment.status === 'failed' ? 'error' : 'warning'} />
+                        </Stack>
+                        <Typography variant="h6">{delta > 0 ? '+' : ''}{money(delta, adjustment.currency)}</Typography>
+                        <Typography variant="body2" color="text.secondary">Reserved: {money(adjustment.reserved_amount, adjustment.currency)}</Typography>
+                        <Typography variant="body2" color="text.secondary">Actual parking: {money(adjustment.actual_amount, adjustment.currency)}</Typography>
+                        <Typography variant="caption" color="text.secondary">Session: {String(adjustment.parking_session_id || '').slice(0, 12)}…</Typography>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
+        )}
+      </Paper>
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
         <Typography variant="h6" fontWeight={700} mb={2}>Payment history</Typography>
@@ -200,8 +231,12 @@ export default function Payments() {
               <Typography><strong>Method:</strong> {friendly(receipt.payment_method)}</Typography>
               <Typography><strong>Provider:</strong> {friendly(receipt.provider)}</Typography>
               <Typography><strong>Reservation:</strong> {receipt.reservation_id}</Typography>
+              {receipt.reservation_amount != null && <Typography><strong>Reserved amount:</strong> {money(receipt.reservation_amount, receipt.currency)}</Typography>}
+              {receipt.actual_session_amount != null && <Typography><strong>Actual parking:</strong> {money(receipt.actual_session_amount, receipt.currency)}</Typography>}
+              {receipt.reconciliation_amount != null && <Typography><strong>Adjustment:</strong> {money(receipt.reconciliation_amount, receipt.currency)} ({friendly(receipt.reconciliation_type)})</Typography>}
               {receipt.provider_reference && <Typography><strong>Provider reference:</strong> {receipt.provider_reference}</Typography>}
               {receipt.processed_at && <Typography><strong>Processed:</strong> {new Date(receipt.processed_at).toLocaleString()}</Typography>}
+              {receipt.reconciled_at && <Typography><strong>Reconciled:</strong> {new Date(receipt.reconciled_at).toLocaleString()}</Typography>}
             </Stack>
           )}
         </DialogContent>
