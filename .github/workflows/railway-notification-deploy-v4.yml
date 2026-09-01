@@ -1,0 +1,146 @@
+name: Railway Notification Production Deploy v4
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'services/notification-service/**'
+      - '.github/workflows/railway-notification-deploy-v4.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-notification-production
+  cancel-in-progress: false
+
+env:
+  RAILWAY_API_URL: https://backboard.railway.com/graphql/v2
+  RAILWAY_PROJECT_ID: 4f5cbf82-9b5b-45a6-b7f3-3fcf01b6e9fc
+  RAILWAY_ENVIRONMENT_NAME: production
+  NOTIFICATION_SERVICE_ID: b71282ac-fa06-4060-8e60-d220f38cc67b
+
+jobs:
+  deploy:
+    name: Deploy Notification to Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require Railway project token
+        run: test -n "${RAILWAY_TOKEN:-}" || { echo '::error::RAILWAY_TOKEN is not configured'; exit 1; }
+
+      - name: Validate token, wire data services, deploy and verify
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, time
+
+          API=os.environ['RAILWAY_API_URL']
+          TOKEN=os.environ['RAILWAY_TOKEN']
+          EXPECTED_PROJECT=os.environ['RAILWAY_PROJECT_ID']
+          EXPECTED_ENV=os.environ['RAILWAY_ENVIRONMENT_NAME']
+          NOTIFICATION=os.environ['NOTIFICATION_SERVICE_ID']
+
+          def gql(query, variables=None):
+              payload=json.dumps({'query':query,'variables':variables or {}})
+              p=subprocess.run([
+                  'curl','--fail-with-body','--silent','--show-error','--request','POST',API,
+                  '--header',f'Project-Access-Token: {TOKEN}',
+                  '--header','Content-Type: application/json',
+                  '--header','Accept: application/json',
+                  '--header','User-Agent: curl/8.5.0',
+                  '--data-binary','@-'
+              ],input=payload,text=True,capture_output=True)
+              if p.returncode:
+                  raise SystemExit(f'Railway API request failed (curl {p.returncode}): {p.stderr.strip()} {p.stdout[:500]}')
+              body=json.loads(p.stdout)
+              if body.get('errors'):
+                  raise SystemExit('Railway GraphQL error: '+'; '.join(e.get('message','GraphQL error') for e in body['errors']))
+              return body['data']
+
+          token_info=gql('query { projectToken { projectId environmentId } }')['projectToken']
+          project_id=token_info['projectId']
+          environment_id=token_info['environmentId']
+          if project_id != EXPECTED_PROJECT:
+              raise SystemExit(f'Project token belongs to {project_id}, expected {EXPECTED_PROJECT}')
+
+          project=gql('''query project($id: String!) {
+            project(id:$id) {
+              id name
+              services { edges { node { id name } } }
+              environments { edges { node { id name } } }
+            }
+          }''',{'id':project_id})['project']
+
+          envs={e['node']['id']:e['node']['name'] for e in project['environments']['edges']}
+          if envs.get(environment_id) != EXPECTED_ENV:
+              raise SystemExit(f'Project token is not scoped to {EXPECTED_ENV}')
+
+          services=[e['node'] for e in project['services']['edges']]
+          if not any(s['id']==NOTIFICATION for s in services):
+              raise SystemExit('Notification service is not present in token-scoped project')
+
+          variables_query='''query variables($projectId:String!,$environmentId:String!,$serviceId:String){
+            variables(projectId:$projectId,environmentId:$environmentId,serviceId:$serviceId)
+          }'''
+          postgres=[]; redis=[]
+          for svc in services:
+              if svc['id']==NOTIFICATION: continue
+              data=gql(variables_query,{'projectId':project_id,'environmentId':environment_id,'serviceId':svc['id']})['variables'] or {}
+              if isinstance(data,dict) and 'DATABASE_URL' in data: postgres.append(svc)
+              if isinstance(data,dict) and 'REDIS_URL' in data: redis.append(svc)
+
+          def choose(items,hint):
+              preferred=[x for x in items if hint in x['name'].lower()]
+              return (preferred or items)[0] if items else None
+          pg=choose(postgres,'postgres'); rd=choose(redis,'redis')
+          if not pg: raise SystemExit('No Railway service exposing DATABASE_URL was found in production')
+          if not rd: raise SystemExit('No Railway service exposing REDIS_URL was found in production')
+
+          db_ref='${{'+pg['name']+'.DATABASE_URL}}'
+          redis_ref='${{'+rd['name']+'.REDIS_URL}}'
+          gql('''mutation upsert($input:VariableCollectionUpsertInput!){ variableCollectionUpsert(input:$input) }''',{
+            'input':{
+              'projectId':project_id,'environmentId':environment_id,'serviceId':NOTIFICATION,
+              'variables':{'DATABASE_URL':db_ref,'REDIS_URL':redis_ref,'ENVIRONMENT':'production','PORT':'8080','DOCS_ENABLED':'false'},
+              'skipDeploys':True
+            }
+          })
+          print(f'Railway project token valid for: {project["name"]}')
+          print(f'PostgreSQL: {pg["name"]}; Redis: {rd["name"]}')
+          print('Notification data-service references updated.')
+
+          deployments_query='''query deployments($input:DeploymentListInput!){ deployments(input:$input,first:5){ edges { node { id status createdAt } } } }'''
+          deploy_input={'projectId':project_id,'serviceId':NOTIFICATION}
+          before=gql(deployments_query,{'input':deploy_input})['deployments']['edges']
+          before_id=before[0]['node']['id'] if before else None
+          gql('''mutation deploy($serviceId:String!,$environmentId:String!){ serviceInstanceDeploy(serviceId:$serviceId,environmentId:$environmentId) }''',{'serviceId':NOTIFICATION,'environmentId':environment_id})
+          print('Notification deployment triggered.')
+
+          deployment_id=None
+          for _ in range(30):
+              edges=gql(deployments_query,{'input':deploy_input})['deployments']['edges']
+              if edges and edges[0]['node']['id'] != before_id:
+                  deployment_id=edges[0]['node']['id']; break
+              time.sleep(2)
+          if not deployment_id: raise SystemExit('No new Railway deployment appeared')
+          print('Railway deployment ID:',deployment_id)
+
+          for _ in range(150):
+              edges=gql(deployments_query,{'input':deploy_input})['deployments']['edges']
+              node=next((e['node'] for e in edges if e['node']['id']==deployment_id),None)
+              if not node: time.sleep(4); continue
+              status=str(node['status']).upper(); print('Railway deployment status:',status)
+              if status=='SUCCESS':
+                  print('Notification deployment SUCCESS; Railway /health gate passed.')
+                  raise SystemExit(0)
+              if status in {'FAILED','CRASHED','REMOVED','REMOVING'}:
+                  raise SystemExit(f'Notification deployment failed: {status}')
+              time.sleep(4)
+          raise SystemExit('Timed out waiting for Railway deployment')
+          PY
