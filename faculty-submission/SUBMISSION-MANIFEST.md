@@ -1,9 +1,10 @@
 # Faculty Submission Manifest
 
-Author: Kolapo Adedipe
-Updated: 30 August 2026
-Repository: `kadedipe/ParkingManagementSystem`
-Implementation baseline represented: `main` after PR #48 (`0a716a16c3bec3eec49b0e9e39fb91c12da67daa`)
+Author: Kolapo Adedipe  
+Originally updated: 30 August 2026  
+Public-domain update: 3 September 2026  
+Repository: `kadedipe/ParkingManagementSystem`  
+Public production domain: https://parking-management-system.com/
 
 ## Included in the downloadable faculty package
 
@@ -16,11 +17,19 @@ Implementation baseline represented: `main` after PR #48 (`0a716a16c3bec3eec49b0
 - Original Python microservice source evidence snapshot
 - Reproducible faculty evidence workflow/test
 
+## Public application access
+
+The production system is publicly accessible through:
+
+**https://parking-management-system.com/**
+
+This custom domain is the preferred URL for faculty review and browser-based demonstration. The Railway-generated frontend URL remains the underlying hosting/deployment origin.
+
 ## Important update note
 
-The design report includes a dedicated August 2026 implementation section covering persistent inventory and reservations, parking sessions, dashboard metrics, operational payments, dated reports, EV charging persistence, vehicle/profile hardening, gateway/UI fixes, and automatic overage/underage reconciliation.
+The design report includes a dedicated August 2026 implementation section covering persistent inventory and reservations, parking sessions, dashboard metrics, operational payments, dated reports, EV charging persistence, vehicle/profile hardening, gateway/UI fixes, and automatic overage/underage reconciliation. The faculty documentation is additionally updated to identify the custom public production domain.
 
-The source snapshot in the original faculty archive is retained as historical submission evidence. The authoritative implementation is repository `main`; this faculty-submission directory records the later merged implementation state instead of presenting the older snapshot as newly regenerated source.
+The source snapshot in the original faculty archive is retained as historical submission evidence. The authoritative implementation is repository `main`; this faculty-submission directory records later merged implementation and production-access updates instead of presenting the older snapshot as newly regenerated source.
 
 ## Production verification status
 
@@ -33,4 +42,6 @@ The deterministic faculty evidence workflow remains `.github/workflows/faculty-s
 - Frontend type-check, production build and tests for the latest session/reconciliation changes passed before merge.
 - PR #47 parking-session workflow is deployed and verified on Railway.
 - PR #48 automatic billing reconciliation is deployed and verified on Railway.
+- Charging-service async test harness was corrected and its charging-service CI test job passed after the fix.
 - Production metrics are included only where explicitly observed during verification.
+- Public browser access is documented at `https://parking-management-system.com/`.

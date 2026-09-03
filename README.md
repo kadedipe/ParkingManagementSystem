@@ -4,13 +4,17 @@ A production-oriented smart parking platform deployed on Railway. The system com
 
 ## Live application
 
-**Open the production web application in any modern browser:**
+**Public production domain — open the application in any modern web browser:**
 
-[Launch Parking Management System](https://frontend-production-fcc8.up.railway.app)
+[Launch Parking Management System](https://parking-management-system.com/)
+
+**Public Domain:** `https://parking-management-system.com/`
+
+Railway frontend origin: `https://frontend-production-fcc8.up.railway.app`
 
 Production API Gateway: `https://api-gateway-production-3a40.up.railway.app`
 
-The frontend and API Gateway are public Railway services. Parking, Vehicle, Notification, Charging, PostgreSQL, and Redis remain private and are reached through Railway private networking.
+The custom public domain is the preferred browser-facing address. The Railway frontend origin remains documented as the underlying deployment endpoint. The frontend and API Gateway are public services; Parking, Vehicle, Notification, Charging, PostgreSQL, and Redis remain private and are reached through Railway private networking.
 
 ## Current production capabilities
 
@@ -150,15 +154,7 @@ The Reservation Calendar provides a single operational view for these transition
 
 ## Payments and billing reconciliation
 
-The parking service exposes persistent payment APIs for:
-
-- payment creation;
-- payment history;
-- payment statistics;
-- processing;
-- receipts;
-- refunds;
-- billing-adjustment history.
+The parking service exposes persistent payment APIs for payment creation, payment history, payment statistics, processing, receipts, refunds, and billing-adjustment history.
 
 When a session ends, the service compares the amount already paid for the reservation with the actual elapsed-session charge and creates exactly one reconciliation record per parking session.
 
@@ -172,20 +168,7 @@ Reconciliation records preserve the original reserved amount, actual amount, adj
 
 ## Reports & Analytics
 
-Historical reports use persisted database records rather than frontend placeholder values.
-
-`GET /reports/analytics` supports a selected start date, end date and report type. Reports include:
-
-- occupancy percentage;
-- completed-payment revenue;
-- reservation/session/payment activity;
-- total parking capacity;
-- completed sessions;
-- average session duration;
-- reservation counts;
-- completed payment counts;
-- daily occupancy, revenue and activity rows;
-- CSV export from the web interface.
+Historical reports use persisted database records rather than frontend placeholder values. `GET /reports/analytics` supports a selected start date, end date and report type. Reports include occupancy percentage, completed-payment revenue, reservation/session/payment activity, total parking capacity, completed sessions, average session duration, reservation counts, completed payment counts, daily rows, and CSV export.
 
 Occupancy is based on actual parking-session overlap, so a reservation by itself does not count as physical occupancy.
 
@@ -195,23 +178,14 @@ The charging service manages EV charging stations, connectors and charging sessi
 
 ## Dashboard
 
-The web Dashboard provides operational visibility into:
-
-- total / available / occupied / reserved parking spots;
-- active and daily parking sessions;
-- average completed-session duration;
-- revenue and weekly revenue trends;
-- occupancy history;
-- parking-spot status distribution;
-- recent parking activity;
-- upcoming reservations;
-- EV charging availability and usage.
+The web Dashboard provides operational visibility into total / available / occupied / reserved parking spots, active and daily parking sessions, average completed-session duration, revenue and weekly revenue trends, occupancy history, parking-spot status distribution, recent parking activity, upcoming reservations, and EV charging availability and usage.
 
 ## Production URLs
 
 | Resource | URL |
 |---|---|
-| Web application | https://frontend-production-fcc8.up.railway.app |
+| **Public web application** | **https://parking-management-system.com/** |
+| Railway frontend origin | https://frontend-production-fcc8.up.railway.app |
 | Frontend health | https://frontend-production-fcc8.up.railway.app/healthz |
 | API Gateway | https://api-gateway-production-3a40.up.railway.app |
 | Gateway health | https://api-gateway-production-3a40.up.railway.app/health |
@@ -270,7 +244,7 @@ alembic upgrade head
 
 GitHub Actions validates the monorepo with service-specific Python tests, frontend type checking/build/tests, database migration checks, Docker builds, security scanning and production-oriented health/evidence workflows.
 
-Production is hosted on Railway. The public frontend and Gateway route traffic to private application services using Railway private DNS.
+Production is hosted on Railway. The public domain `parking-management-system.com` provides the browser-facing application address, while the public Railway frontend and Gateway route traffic to private application services using Railway private DNS.
 
 Useful operational documentation:
 
@@ -280,7 +254,7 @@ Useful operational documentation:
 
 ## Faculty submission
 
-The repository includes an updated faculty-submission record documenting the production architecture and implementation evolution, including persistent parking, reservations, payments, historical reporting, operational parking sessions and automatic billing reconciliation.
+The repository includes an updated faculty-submission record documenting the production architecture and implementation evolution, including persistent parking, reservations, payments, historical reporting, operational parking sessions, automatic billing reconciliation, and the public production domain.
 
 See:
 
@@ -297,4 +271,6 @@ Only example/template environment files belong in Git. Backend/database services
 
 GitHub: `kadedipe/ParkingManagementSystem`
 
-Production frontend: [https://frontend-production-fcc8.up.railway.app](https://frontend-production-fcc8.up.railway.app)
+**Public production application:** [https://parking-management-system.com/](https://parking-management-system.com/)
+
+Railway frontend origin: [https://frontend-production-fcc8.up.railway.app](https://frontend-production-fcc8.up.railway.app)
