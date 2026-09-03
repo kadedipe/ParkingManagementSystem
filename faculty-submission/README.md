@@ -1,12 +1,24 @@
 # ParkingManagementSystem Faculty Submission
 
-This directory records the updated faculty-submission state as of 30 August 2026.
+This directory records the updated faculty-submission state for the production Parking Management System.
 
-The full downloadable archive contains the updated 21-page DOCX/PDF design report, the Markdown source, implementation update, repository-state note, architecture diagrams and the original evidence/source snapshot. The repository-facing files here provide a durable audit trail tied to the current implementation on `main`.
+**Author:** Kolapo Adedipe  
+**Repository:** `kadedipe/ParkingManagementSystem`  
+**Public production domain:** https://parking-management-system.com/
+
+The full downloadable archive contains the updated DOCX/PDF design report, the Markdown source, implementation update, repository-state note, architecture diagrams and the original evidence/source snapshot. The repository-facing files here provide a durable audit trail tied to the current implementation on `main`.
+
+## Public application access
+
+The Parking Management System is publicly accessible through the project custom domain:
+
+**https://parking-management-system.com/**
+
+This is the preferred browser-facing URL for faculty review, demonstration, and public access. The Railway-generated frontend URL remains the underlying deployment origin.
 
 ## Current repository baseline
 
-`0a716a16c3bec3eec49b0e9e39fb91c12da67daa` - merge of PR #48, automatic parking billing reconciliation.
+The faculty submission documents the production implementation evolution through persistent parking inventory, reservations, parking sessions, payments, reports, EV charging, billing reconciliation, production verification, and subsequent test/README hardening on `main`.
 
 ## Latest major capabilities reflected in the updated report
 
@@ -20,9 +32,11 @@ The full downloadable archive contains the updated 21-page DOCX/PDF design repor
 - profile and vehicle hardening
 - gateway production route compatibility
 - automatic overage/underage billing reconciliation
+- public custom production domain for browser access
+- async charging-service test harness aligned with the production AsyncSession architecture
 
 ## Evidence policy
 
-The report deliberately separates observed Railway production behavior from newly merged repository capabilities. PR #47 and PR #48 are documented as merged capabilities until the relevant services are redeployed and re-observed.
+The report separates observed production behavior from repository implementation evidence. PR #47 and PR #48 have been redeployed to Railway and verified as live production capabilities. The custom public domain is documented as the preferred application access point supplied for the production system.
 
 See `IMPLEMENTATION-UPDATE-2026-08-30.md` and `SUBMISSION-MANIFEST.md` for details.
